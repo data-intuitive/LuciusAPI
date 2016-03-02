@@ -8,7 +8,7 @@ resolvers += "Job Server Bintray" at "https://dl.bintray.com/spark-jobserver/mav
 
 resolvers += "bintray-tverbeiren" at "http://dl.bintray.com/tverbeiren/maven"
 
-libraryDependencies += "com.data-intuitive" %% "luciusback" % "1.0"
+libraryDependencies += "com.data-intuitive" %% "luciuscore" % "1.0"
 
 // libraryDependencies += "spark.jobserver" %% "job-server-api" % "0.6.1" % "provided"
 
