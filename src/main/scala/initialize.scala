@@ -4,6 +4,7 @@ import LuciusBack.L1000._
 import LuciusBack.RddFunctions._
 import com.typesafe.config.Config
 import org.apache.spark._
+import org.apache.spark.rdd._
 import spark.jobserver.{NamedRddSupport, SparkJob, SparkJobValid, SparkJobValidation}
 import scala.util.Try
 
@@ -14,7 +15,7 @@ object initialize extends SparkJob with NamedRddSupport {
   override def runJob(sc: SparkContext, config: Config): Any = {
 
     val namespace = sc.getConf.get("spark.app.name")
-    val location:String = Try(config.getString("location")).getOrElse("s3n://itx-abt-jnj-exasci/L1000/")
+    val location:String = Try(config.getString("location")).getOrElse("hdfs://ly-1-09:54310/lucius1/")
 
     val fs_s3_awsAccessKeyId      = sys.env.get("AWS_ACCESS_KEY_ID").getOrElse("<MAKE SURE KEYS ARE EXPORTED>")
     val fs_s3_awsSecretAccessKey  = sys.env.get("AWS_SECRET_ACCESS_KEY").getOrElse("<THE SAME>")
@@ -22,26 +23,10 @@ object initialize extends SparkJob with NamedRddSupport {
     sc.hadoopConfiguration.set("fs.s3n.awsAccessKeyId", fs_s3_awsAccessKeyId)
     sc.hadoopConfiguration.set("fs.s3n.awsSecretAccessKey", fs_s3_awsSecretAccessKey)
 
-    val tStatsFile = location + "tStats.txt"
-    val pStatsFile = location + "tPvalues.txt"
-    val phenoFile = location + "phenoData.txt"
-    val tStats = loadGenesPwidsValues(sc, tStatsFile, "\t", true)
-    val pStats = loadGenesPwidsValues(sc, pStatsFile, "\t", true)
-    val pheno = loadFeaturesPwidsAnnotations(sc, phenoFile, "\t")
-    val translationTable = loadGeneTranslationTable(sc, location + "featureData.txt", "\t").cache
-
-    // Calculate ranks and add annotations
-    val ranks = tStats.data.map(valueVector2AvgRankVector(_))
-    val aRanks = joinPwidsRanksAnnotations(tStats.pwids, ranks, pheno.annotations)
-
-    // Derived signatures from pwids, based on significance
-    val tpStats = joinAndZip(tStats.data, pStats.data)
-    val signaturesFromPwids = tpStats.map(x => generateSignature(x,tStats.genes,0.05,100))
-
-    // Derived signatures from multiple pwids, pre-populate RDD for later derivation
-    val annotatedTPStats = joinPwidsTPAnnotations(tStats.pwids, tStats.data, pStats.data, pheno.annotations)
-
-    val genes = sc.parallelize(tStats.genes)
+    val genes:RDD[LuciusBack.GeneFunctions.Gene] = sc.objectFile(location + "t_genes")    
+    val translationTable:RDD[(String,String)] = sc.objectFile(location + "t_translationTable")
+    val aRanks:RDD[LuciusBack.AnnotatedRanks] = sc.objectFile(location + "t_aRanks")
+    val annotatedTPStats:RDD[LuciusBack.AnnotatedTPStats] = sc.objectFile(location + "t_aTPStats")
 
     val jobServerRunning = Try(this.namedRdds).toOption
     if (jobServerRunning != None) {
