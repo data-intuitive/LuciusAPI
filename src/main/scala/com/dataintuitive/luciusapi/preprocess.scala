@@ -4,7 +4,7 @@ import com.dataintuitive.luciuscore.io._
 
 import com.typesafe.config.Config
 import org.apache.spark._
-import spark.jobserver.{NamedRddSupport, SparkJob, SparkJobValid, SparkJobValidation}
+import spark.jobserver.{NamedRddSupport, SparkJob, SparkJobValid, SparkJobInvalid, SparkJobValidation}
 import scala.util.Try
 
 /**
@@ -13,9 +13,25 @@ import scala.util.Try
   *
   * Please see `io` tests in LuciusCore for the procedure.
   */
-object preprocess extends SparkJob with NamedRddSupport {
+object preprocess extends SparkJob {
 
-  override def validate(sc: SparkContext, config: Config): SparkJobValidation = SparkJobValid
+  /**
+    * Make sure:
+    *   - `locationFrom` and `locationTo` are provided
+    *   - Todo: Both locations exist
+    */
+  override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
+    //
+    val locationFromOption = Try(config.getString("locationFrom")).toOption
+    val locationToOption = Try(config.getString("locationTo")).toOption
+
+    (locationFromOption.isDefined, locationToOption.isDefined) match {
+      case (true,  true)   => SparkJobValid
+      case (false, true)   => SparkJobInvalid(s"Missing locationFrom config in POST")
+      case (true,  false)  => SparkJobInvalid(s"Missing locationTo config in POST")
+      case (false, false) => SparkJobInvalid(s"Missing both locationFrom and locationTo config in POST")
+    }
+  }
 
   override def runJob(sc: SparkContext, config: Config): Any = {
 
@@ -40,22 +56,26 @@ object preprocess extends SparkJob with NamedRddSupport {
     val geneAnnotationsFile = base + "featureData.txt"
     val compoundAnnotationsFile = base + "compoundAnnotations.tsv"
 
-    // Loading the data
+    // Loading the data (V1)
     val dbRelations = SampleCompoundRelationsIO.loadSampleCompoundRelationsFromFileV1(sc, sampleCompoundRelationsFile)
-    val compoundAnnotations = CompoundAnnotationsIO.loadCompoundAnnotationsFromFileV2(sc, compoundAnnotationsFile)
-    val dbAfterCA = CompoundAnnotationsIO.updateCompoundAnnotationsV2(compoundAnnotations, dbRelations)
+    val dbAfterCA = dbRelations
+//    val compoundAnnotations = CompoundAnnotationsIO.loadCompoundAnnotationsFromFileV2(sc, compoundAnnotationsFile)
+//    val dbAfterCA = CompoundAnnotationsIO.updateCompoundAnnotationsV2(compoundAnnotations, dbRelations)
     val tStats = StatsIO.loadStatsFromFile(sc, tStatsFile, toTranspose=true)
     val pStats = StatsIO.loadStatsFromFile(sc, pStatsFile, toTranspose=true)
     val dbAfterStatsTmp = StatsIO.updateStats(tStats, dbAfterCA, StatsIO.dbUpdateT)
     val dbAfterStats = StatsIO.updateStats(pStats, dbAfterStatsTmp, StatsIO.dbUpdateP)
     val db = RanksIO.updateRanks(dbAfterStats)
 
+    // Loading gene annotations
     val genes = GenesIO.loadGenesFromFile(sc, geneAnnotationsFile)
 
+    // Writing to intermediate object format
     db.saveAsObjectFile(locationTo + "db")
     sc.parallelize(genes.genes).saveAsObjectFile(locationTo + "genes")
 
-    (genes, db)
+    // Output something to check
+    (genes.genes.head, db.first)
 
   }
 
