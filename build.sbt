@@ -8,13 +8,12 @@ resolvers += "Job Server Bintray" at "https://dl.bintray.com/spark-jobserver/mav
 
 resolvers += "bintray-tverbeiren" at "http://dl.bintray.com/tverbeiren/maven"
 
-libraryDependencies += "com.data-intuitive" %% "luciuscore" % "2.0.0"
-
-libraryDependencies += "spark.jobserver" %% "job-server-api" % "0.6.2" % "provided"
-
-libraryDependencies += "spark.jobserver" %% "job-server-extras" % "0.6.2" % "provided"
-
-libraryDependencies += "org.apache.spark" %% "spark-core" % "1.6.1" % "provided"
-
-libraryDependencies += "org.scalaz" %% "scalaz-core" % "7.2.0"
-
+libraryDependencies ++= Seq(
+  "com.data-intuitive" %% "luciuscore"        % "2.0.0",
+  "spark.jobserver"    %% "job-server-api"    % "0.6.2"     % "provided",
+  "spark.jobserver"    %% "job-server-extras" % "0.6.2"     % "provided",
+  "org.scalactic"      %% "scalactic"         % "3.0.0"     % "test"    ,
+  "org.scalatest"      %% "scalatest"         % "3.0.0"     % "test"    ,
+  "org.apache.spark"   %% "spark-core"        % "1.6.2"     % "provided",
+  "org.scalaz"         %% "scalaz-core"       % "7.2.0"
+)
