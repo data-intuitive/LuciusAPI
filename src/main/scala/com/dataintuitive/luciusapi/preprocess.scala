@@ -15,28 +15,30 @@ import scala.util.Try
   */
 object preprocess extends SparkJob {
 
+  def isDefined(x: Option[String]):Boolean = x.isDefined
+
+  val versions = Set("v1", "v2")
+  def versionMatch(x: Option[String]): Boolean = x.exists(v => versions contains v)
+
+  val configs:Map[String, (Option[String] => Boolean, String)] = Map(
+    ("locationFrom",           (isDefined _,    "locationFrom not defined in POST config")),
+    ("locationTo",             (isDefined _,    "locationTo not defined in POST config")  ),
+    ("version",                (isDefined _,    "version not defined in POST config")),
+    ("version",                (versionMatch _, "version should be either v1 or v2"))
+  )
+
   /**
     * Make sure:
     *   - `locationFrom` and `locationTo` are provided
-    *   - Todo: Check if Amazon keys are exported (when using S3 locations)
     *   - Todo: Both locations exist
+    *   - Todo: Check if target already exists
     */
   override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
 
-    val locationFromOption = Try(config.getString("locationFrom")).toOption
-    val locationToOption = Try(config.getString("locationTo")).toOption
+    val configsExtracted = configs.map(c => (Try(config.getString(c._1)).toOption, c._2))
+    val testsRun = configsExtracted.map{case (value, (func, error)) => (func(value), error)}
 
-    val fsS3AwsAccessKeyId      = sys.env.get("AWS_ACCESS_KEY_ID")
-    val fsS3AwsSecretAccessKey  = sys.env.get("AWS_SECRET_ACCESS_KEY")
-
-    val tests = Seq(
-      (locationFromOption.isDefined, "locationFrom not defined in POST config"),
-      (locationToOption.isDefined, "locationTo not defined in POST config"),
-      (fsS3AwsAccessKeyId.isDefined, "AWS Access key not exported in shell"),
-      (fsS3AwsSecretAccessKey.isDefined, "AWS Secret key not exported in shell")
-    )
-
-    val allTests = tests.reduce((a,b) => (a,b) match{
+    val allTests = testsRun.reduce((a,b) => (a,b) match{
       case ((true, l), (true, r))  => (true, "")
       case ((true, l), (false, r)) => (false, r)
       case ((false, l), (true, r)) => (false, l)
@@ -53,11 +55,10 @@ object preprocess extends SparkJob {
     // API Version
     val version = Try(config.getString("version")).getOrElse("v1")
 
-    val namespace = sc.getConf.get("spark.app.name")
     val locationFrom:String = Try(config.getString("locationFrom")).getOrElse("s3n://itx-abt-jnj-exasci/L1000/")
     val locationTo:String = Try(config.getString("locationTo")).getOrElse("hdfs://ly-1-09:54310/lucius1/")
 
-    // S3 keys
+    // S3 keys, for backward compatibility
     val fs_s3_awsAccessKeyId      = sys.env.get("AWS_ACCESS_KEY_ID").getOrElse("<MAKE SURE KEYS ARE EXPORTED>")
     val fs_s3_awsSecretAccessKey  = sys.env.get("AWS_SECRET_ACCESS_KEY").getOrElse("<THE SAME>")
     sc.hadoopConfiguration.set("fs.s3n.awsAccessKeyId", fs_s3_awsAccessKeyId)
