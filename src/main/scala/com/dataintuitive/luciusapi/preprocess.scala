@@ -17,15 +17,30 @@ object preprocess extends SparkJob {
 
   def isDefined(x: Option[String]):Boolean = x.isDefined
 
-  val versions = Set("v1", "v2")
+  // TODO: versions should be argument to versionMatch, no globals!
+  val versions = Set("v1", "v2", "t1")
   def versionMatch(x: Option[String]): Boolean = x.exists(v => versions contains v)
 
-  val configs:Map[String, (Option[String] => Boolean, String)] = Map(
-    ("locationFrom",           (isDefined _,    "locationFrom not defined in POST config")),
-    ("locationTo",             (isDefined _,    "locationTo not defined in POST config")  ),
-    ("version",                (isDefined _,    "version not defined in POST config")),
-    ("version",                (versionMatch _, "version should be either v1 or v2"))
+//  def isCompoundAnnotationsV2(tuple: (Option[String], Option[String])): Boolean = tuple match {
+//    case (ca, v) => (v.getOrElse("vv") == "v2") && ca.isDefined
+//  }
+
+  // This is ok if no combination of parameters are required
+  val configs:Seq[(String, (Option[String] => Boolean, String))] = Seq(
+    ("locationFrom",           (isDefined ,    "locationFrom not defined in POST config")),
+    ("locationTo",             (isDefined ,    "locationTo not defined in POST config")  ),
+    ("sampleCompoundRelations",(isDefined ,    "sampleCompoundRelations not defined in POST config")  ),
+    ("geneAnnotations",        (isDefined ,    "geneAnnotations not defined in POST config")  ),
+    ("tStats",                 (isDefined ,    "tStats not defined in POST config")  ),
+    ("pStats",                 (isDefined ,    "pStats not defined in POST config")  ),
+    ("version",                (isDefined ,    "version not defined in POST config")),
+    ("version",                (versionMatch , "version should be either v1, v2 or t1"))
   )
+
+//  val configsCorr = Map(
+//    (("version", "compoundAnnotations"), (isCompoundAnnotationsV2 _, "compoundAnnotations required for v2")),
+//  )
+
 
   /**
     * Make sure:
@@ -37,6 +52,9 @@ object preprocess extends SparkJob {
 
     val configsExtracted = configs.map(c => (Try(config.getString(c._1)).toOption, c._2))
     val testsRun = configsExtracted.map{case (value, (func, error)) => (func(value), error)}
+
+    println(configsExtracted.map(_._2._2))
+    println(testsRun.map(_._2))
 
     val allTests = testsRun.reduce((a,b) => (a,b) match{
       case ((true, l), (true, r))  => (true, "")
@@ -54,9 +72,12 @@ object preprocess extends SparkJob {
 
     // API Version
     val version = Try(config.getString("version")).getOrElse("v1")
-
-    val locationFrom:String = Try(config.getString("locationFrom")).getOrElse("s3n://itx-abt-jnj-exasci/L1000/")
-    val locationTo:String = Try(config.getString("locationTo")).getOrElse("hdfs://ly-1-09:54310/lucius1/")
+    val locationFrom:String = Try(config.getString("locationFrom")).get
+    val locationTo:String = Try(config.getString("locationTo")).get
+    val sampleCompoundRelationsString:String = Try(config.getString("sampleCompoundRelations")).get
+    val geneAnnotationsString:String = Try(config.getString("geneAnnotations")).get
+    val tStatsString:String = Try(config.getString("tStats")).get
+    val pStatsString:String = Try(config.getString("pStats")).get
 
     // S3 keys, for backward compatibility
     val fs_s3_awsAccessKeyId      = sys.env.get("AWS_ACCESS_KEY_ID").getOrElse("<MAKE SURE KEYS ARE EXPORTED>")
@@ -66,11 +87,10 @@ object preprocess extends SparkJob {
 
     // Input file locations based on config
     val base = locationFrom
-    val sampleCompoundRelationsFile = base + "phenoData.txt"
-    val pStatsFile = base + "tPvalues.txt"
-    val tStatsFile = base + "tStats.txt"
-    val geneAnnotationsFile = base + "featureData.txt"
-    val compoundAnnotationsFile = base + "compoundAnnotations.tsv"
+    val sampleCompoundRelationsFile = base + sampleCompoundRelationsString
+    val pStatsFile = base + pStatsString
+    val tStatsFile = base + tStatsString
+    val geneAnnotationsFile = base + geneAnnotationsString
 
     val db = version match {
       case "v1" => {
@@ -83,6 +103,9 @@ object preprocess extends SparkJob {
         RanksIO.updateRanks(dbAfterStats)
       }
       case "v2" => {
+        val compoundAnnotationsString:String = Try(config.getString("compoundAnnotations")).get
+        val compoundAnnotationsFile = base + compoundAnnotationsString
+
         // Loading the data (v2 format) -- Compound info is in annotations file
         val dbRelations = SampleCompoundRelationsIO.loadSampleCompoundRelationsFromFileV1(sc, sampleCompoundRelationsFile)
         val compoundAnnotations = CompoundAnnotationsIO.loadCompoundAnnotationsFromFileV2(sc, compoundAnnotationsFile)
@@ -90,6 +113,15 @@ object preprocess extends SparkJob {
         val tStats = StatsIO.loadStatsFromFile(sc, tStatsFile, toTranspose = true)
         val pStats = StatsIO.loadStatsFromFile(sc, pStatsFile, toTranspose = true)
         val dbAfterStatsTmp = StatsIO.updateStats(tStats, dbAfterCA, StatsIO.dbUpdateT)
+        val dbAfterStats = StatsIO.updateStats(pStats, dbAfterStatsTmp, StatsIO.dbUpdateP)
+        RanksIO.updateRanks(dbAfterStats)
+      }
+      case "t1" => {
+        // Loading the data (v1 format) for the testing and demonstration dataset
+        val dbRelations = SampleCompoundRelationsIO.loadSampleCompoundRelationsFromFileV1(sc, sampleCompoundRelationsFile)
+        val tStats = StatsIO.loadStatsFromFile(sc, tStatsFile, toTranspose = false)
+        val pStats = StatsIO.loadStatsFromFile(sc, pStatsFile, toTranspose = false)
+        val dbAfterStatsTmp = StatsIO.updateStats(tStats, dbRelations, StatsIO.dbUpdateT)
         val dbAfterStats = StatsIO.updateStats(pStats, dbAfterStatsTmp, StatsIO.dbUpdateP)
         RanksIO.updateRanks(dbAfterStats)
       }

@@ -26,6 +26,10 @@ class preprocessTest extends FlatSpec with BaseSparkContextSpec {
       .withValue("locationFrom", ConfigValueFactory.fromAnyRef("locFrom"))
       .withValue("locationTo", ConfigValueFactory.fromAnyRef("locTo"))
       .withValue("version", ConfigValueFactory.fromAnyRef("v1"))
+      .withValue("sampleCompoundRelations", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("geneAnnotations", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("tStats", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("pStats", ConfigValueFactory.fromAnyRef("x"))
 
     assert(preprocess.validate(sc, thisConfigValid) === SparkJobValid)
 
@@ -36,9 +40,27 @@ class preprocessTest extends FlatSpec with BaseSparkContextSpec {
     val thisConfigNoFrom = baseConfig
       .withValue("locationTo", ConfigValueFactory.fromAnyRef("locTo"))
       .withValue("version", ConfigValueFactory.fromAnyRef("v1"))
+      .withValue("sampleCompoundRelations", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("geneAnnotations", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("tStats", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("pStats", ConfigValueFactory.fromAnyRef("x"))
     val expectedErrorNoFrom = "locationFrom not defined in POST config"
 
     assert(preprocess.validate(sc, thisConfigNoFrom) === SparkJobInvalid(expectedErrorNoFrom))
+
+  }
+
+  "Validation" should "return appropriate errors with multiple missing values" in {
+
+    val thisConfigNoMult = baseConfig
+      .withValue("locationTo", ConfigValueFactory.fromAnyRef("locTo"))
+      .withValue("version", ConfigValueFactory.fromAnyRef("v1"))
+      .withValue("geneAnnotations", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("tStats", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("pStats", ConfigValueFactory.fromAnyRef("x"))
+    val expectedErrorNoMult = "locationFrom not defined in POST config, sampleCompoundRelations not defined in POST config"
+
+    assert(preprocess.validate(sc, thisConfigNoMult) === SparkJobInvalid(expectedErrorNoMult))
 
   }
 
@@ -48,7 +70,11 @@ class preprocessTest extends FlatSpec with BaseSparkContextSpec {
       .withValue("locationFrom", ConfigValueFactory.fromAnyRef("locFrom"))
       .withValue("locationTo", ConfigValueFactory.fromAnyRef("locTo"))
       .withValue("version", ConfigValueFactory.fromAnyRef("v3"))
-    val expectedErrorNoVersion = "version should be either v1 or v2"
+      .withValue("sampleCompoundRelations", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("geneAnnotations", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("tStats", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("pStats", ConfigValueFactory.fromAnyRef("x"))
+    val expectedErrorNoVersion = "version should be either v1, v2 or t1"
 
     assert(preprocess.validate(sc, thisConfigVersion) === SparkJobInvalid(expectedErrorNoVersion))
 
@@ -59,8 +85,13 @@ class preprocessTest extends FlatSpec with BaseSparkContextSpec {
   val configBlob =
     """
       | {
-      |   locationFrom = "file://v1"
-      |   locationTo = "file://processed/"
+      |   version = "t1"
+      |   locationFrom = "src/test/resources/"
+      |   sampleCompoundRelations = "sampleCompoundRelations.txt"
+      |   geneAnnotations = "geneAnnotations.txt"
+      |   tStats = "tStats-transposed-head.txt"
+      |   pStats = "pStats-transposed-head.txt"
+      |   locationTo = "src/test/resources/processed/"
       | }
     """.stripMargin
 
@@ -71,8 +102,11 @@ class preprocessTest extends FlatSpec with BaseSparkContextSpec {
 
     val thisConfig = ConfigFactory.parseString(configBlob).withFallback(baseConfig)
 
-    println(thisConfig.root().render())
+    println(ConfigFactory.parseString(configBlob))
 
+    assert(preprocess.validate(sc, thisConfig) === SparkJobValid)
+
+    preprocess.runJob(sc, thisConfig)
 
   }
 
