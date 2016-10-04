@@ -1,11 +1,13 @@
 package com.dataintuitive.luciusapi
 
+import com.dataintuitive.luciuscore.Model.DbRow
 import com.dataintuitive.test.BaseSparkContextSpec
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
-import org.apache.spark._
-import preprocess._
+import org.apache.spark.rdd.RDD
 import org.scalatest.FlatSpec
 import spark.jobserver.{SparkJobInvalid, SparkJobValid, SparkJobValidation}
+
+import scala.util.Try
 
 /**
   * Tests for the `preprocess` endpoint.
@@ -35,7 +37,7 @@ class preprocessTest extends FlatSpec with BaseSparkContextSpec {
 
   }
 
-  "Validation" should "return appropriate errors with no From" in {
+  it should "return appropriate errors with no From" in {
 
     val thisConfigNoFrom = baseConfig
       .withValue("locationTo", ConfigValueFactory.fromAnyRef("locTo"))
@@ -50,7 +52,7 @@ class preprocessTest extends FlatSpec with BaseSparkContextSpec {
 
   }
 
-  "Validation" should "return appropriate errors with multiple missing values" in {
+  it should "return appropriate errors with multiple missing values" in {
 
     val thisConfigNoMult = baseConfig
       .withValue("locationTo", ConfigValueFactory.fromAnyRef("locTo"))
@@ -64,7 +66,7 @@ class preprocessTest extends FlatSpec with BaseSparkContextSpec {
 
   }
 
-  "Validation" should "return appropriate errors with incorrect version" in {
+  it should "return appropriate errors with incorrect version" in {
 
     val thisConfigVersion = baseConfig
       .withValue("locationFrom", ConfigValueFactory.fromAnyRef("locFrom"))
@@ -106,7 +108,14 @@ class preprocessTest extends FlatSpec with BaseSparkContextSpec {
 
     assert(preprocess.validate(sc, thisConfig) === SparkJobValid)
 
-    preprocess.runJob(sc, thisConfig)
+    val fileExists = Try(sc.textFile("src/test/resources/processed/db")).toOption.isDefined
+    if (!fileExists)
+      preprocess.runJob(sc, thisConfig)
+
+    val rdd:RDD[DbRow] = sc.objectFile("src/test/resources/processed/db")
+    val firstEntry = rdd.first
+
+    assert(firstEntry.pwid.isDefined)
 
   }
 

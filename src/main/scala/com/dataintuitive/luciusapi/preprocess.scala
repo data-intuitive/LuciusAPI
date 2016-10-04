@@ -1,6 +1,8 @@
 package com.dataintuitive.luciusapi
 
 import com.dataintuitive.luciuscore.io._
+import com.dataintuitive.luciuscore.Model._
+import com.dataintuitive.luciuscore.GeneModel._
 
 import com.typesafe.config.Config
 import org.apache.spark._
@@ -129,10 +131,11 @@ object preprocess extends SparkJob {
 
     // Loading gene annotations
     val genes = GenesIO.loadGenesFromFile(sc, geneAnnotationsFile)
+    val genesAsArray:Array[GeneAnnotation] = genes.genes
 
     // Writing to intermediate object format
-    db.saveAsObjectFile(locationTo + "db")
-    sc.parallelize(genes.genes).saveAsObjectFile(locationTo + "genes")
+    db.saveAsObjectFile(locationTo + "db.of")
+    sc.parallelize(genesAsArray).saveAsObjectFile(locationTo + "genes.of")
 
     // Output something to check
     (genes.genes.head, db.first)
