@@ -22,15 +22,15 @@ import scala.util.Try
   * - For Jobserver we use NamedObject support for both the RDD and the dictionary of genes.
   * - For local, we use PersistentRDDs in combination with a new loading of the genes database at every call.
   */
-object initialize extends SparkJob with NamedObjectSupport {
+object initialize extends SparkJob with NamedObjectSupport with Globals {
 
-  implicit def rddPersister[T] : NamedObjectPersister[NamedRDD[T]] = new RDDPersister[T]
-  implicit def broadcastPersister[U] : NamedObjectPersister[NamedBroadcast[U]] = new BroadcastPersister[U]
+  import Common._
 
   override def validate(sc: SparkContext, config: Config): SparkJobValidation = SparkJobValid
 
   override def runJob(sc: SparkContext, config: Config): Any = {
 
+    // Config
     val location:String = Try(config.getString("location")).getOrElse("")
     val base = location
     val geneAnnotationsString:String = Try(config.getString("geneAnnotations")).get
@@ -49,17 +49,21 @@ object initialize extends SparkJob with NamedObjectSupport {
     // Load data
     val db:RDD[DbRow] = sc.objectFile(location + "db")
 
-    val jobServerRunning = Try(this.namedObjects).toOption
-    if (jobServerRunning.isDefined) {
-      // This means we're really running within the jobserver, not within a notebook
-      namedObjects.update("genes", NamedBroadcast(broadcast))
-      namedObjects.update("db", NamedRDD(db.cache, forceComputation = false, storageLevel = StorageLevel.NONE))
-      namedObjects.getNames
-    } else {
-//      genes.cache.setName("genes")
-      db.cache.setName("db")
-      sc.getPersistentRDDs
-    }
+//    // Persist, depending on whether jobserver is running or not
+//    val jobServerRunning = Try(this.namedObjects).toOption
+//    if (jobServerRunning.isDefined) {
+//      // This means we're really running within the jobserver, not within a notebook
+//      namedObjects.update("genes", NamedBroadcast(broadcast))
+//      namedObjects.update("db", NamedRDD(db.cache, forceComputation = false, storageLevel = StorageLevel.NONE))
+//      namedObjects.getNames
+//    } else {
+//      setGenes(genes)
+//      setDb(db)
+//      sc.getPersistentRDDs
+//    }
+
+    persistDb(sc, this, db)
+    persistGenes(sc, this, broadcast)
 
 //    namedObjects.getNames
 
