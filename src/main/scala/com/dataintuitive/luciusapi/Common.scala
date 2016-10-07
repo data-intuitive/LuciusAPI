@@ -40,7 +40,7 @@ object Common extends Serializable {
     * Persist the gene annotations, depending on the situation:
     *
     * - As a NamedObject: When running inside Spark Jobserver
-    * - Using a global object (see `Global` trait)
+    * - Using a global object (see `Globals` trait)
     *
     */
   def persistGenes(sc:SparkContext, sj:SparkJob with NamedObjectSupport with Globals, genes:Broadcast[Genes]) = {
@@ -64,12 +64,12 @@ object Common extends Serializable {
       val NamedRDD(db, _ ,_) = sj.namedObjects.get[NamedRDD[DbRow]]("db").get
       db
     } else {
-      initialize.getDb(sc)
+      sj.getDb(sc)
     }
   }
 
   /**
-    * Retrieve a pointer to the genes, either using NamedObjects or via `Global`.
+    * Retrieve a pointer to the genes, either using NamedObjects or via `Globals`.
     */
   def retrieveGenes(sc:SparkContext, sj:SparkJob with NamedObjectSupport with Globals):Broadcast[Genes] = {
     val jobServerRunning = Try(sj.namedObjects).toOption
@@ -78,7 +78,7 @@ object Common extends Serializable {
       val NamedBroadcast(genes) = sj.namedObjects.get[NamedBroadcast[Genes]]("genes").get
       genes
     } else {
-      initialize.getGenes
+      sj.getGenes
     }
   }
 
