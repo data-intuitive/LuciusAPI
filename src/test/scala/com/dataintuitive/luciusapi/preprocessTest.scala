@@ -104,8 +104,6 @@ class preprocessTest extends FlatSpec with BaseSparkContextSpec {
 
     val thisConfig = ConfigFactory.parseString(configBlob).withFallback(baseConfig)
 
-    println(ConfigFactory.parseString(configBlob))
-
     assert(preprocess.validate(sc, thisConfig) === SparkJobValid)
 
     val fileExists = Try(sc.textFile("src/test/resources/processed/db")).toOption.isDefined

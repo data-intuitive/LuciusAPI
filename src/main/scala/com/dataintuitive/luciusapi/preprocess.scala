@@ -55,9 +55,6 @@ object preprocess extends SparkJob {
     val configsExtracted = configs.map(c => (Try(config.getString(c._1)).toOption, c._2))
     val testsRun = configsExtracted.map{case (value, (func, error)) => (func(value), error)}
 
-    println(configsExtracted.map(_._2._2))
-    println(testsRun.map(_._2))
-
     val allTests = testsRun.reduce((a,b) => (a,b) match{
       case ((true, l), (true, r))  => (true, "")
       case ((true, l), (false, r)) => (false, r)
