@@ -19,7 +19,7 @@ trait Globals extends Serializable {
     "symbolString",
     "nameString")
 
-  var thisGenes:Broadcast[Genes] = _ //new Genes(Array(gene))
+  var thisGenes:Broadcast[Genes] = _
 
   def setGenes(g:Broadcast[Genes]) = { thisGenes = g }
   def getGenes = thisGenes
