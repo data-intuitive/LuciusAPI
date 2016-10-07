@@ -13,17 +13,12 @@ import org.apache.spark.rdd.RDD
   */
 trait Globals extends Serializable {
 
-  val gene: GeneAnnotation = new GeneAnnotation("probesetidString",
-    "entrezidString",
-    "ensemblidString",
-    "symbolString",
-    "nameString")
-
+  // Gene empty initialization and accessor methods
   var thisGenes:Broadcast[Genes] = _
-
   def setGenes(g:Broadcast[Genes]) = { thisGenes = g }
   def getGenes = thisGenes
 
+  // db accessor methods
   def setDb(db:RDD[DbRow]) = db.cache.setName("db")
   def getDb(sc:SparkContext) =
     sc.getPersistentRDDs
@@ -31,6 +26,8 @@ trait Globals extends Serializable {
       .filter(rdd => (rdd.name == "db"))
       .head.asInstanceOf[RDD[DbRow]]
 
+  /** A utility function, similar to what `NamedObjects.getNames()` provides.
+    */
   def getGlobals = Set("db", "genes")
 
 }
