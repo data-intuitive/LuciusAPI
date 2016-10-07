@@ -49,23 +49,10 @@ object initialize extends SparkJob with NamedObjectSupport with Globals {
     // Load data
     val db:RDD[DbRow] = sc.objectFile(location + "db")
 
-//    // Persist, depending on whether jobserver is running or not
-//    val jobServerRunning = Try(this.namedObjects).toOption
-//    if (jobServerRunning.isDefined) {
-//      // This means we're really running within the jobserver, not within a notebook
-//      namedObjects.update("genes", NamedBroadcast(broadcast))
-//      namedObjects.update("db", NamedRDD(db.cache, forceComputation = false, storageLevel = StorageLevel.NONE))
-//      namedObjects.getNames
-//    } else {
-//      setGenes(genes)
-//      setDb(db)
-//      sc.getPersistentRDDs
-//    }
-
     persistDb(sc, this, db)
     persistGenes(sc, this, broadcast)
 
-//    namedObjects.getNames
+    "LuciusAPI initialized..."
 
   }
 
