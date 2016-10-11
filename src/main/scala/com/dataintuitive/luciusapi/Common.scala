@@ -7,6 +7,7 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.rdd.RDD
 import org.apache.spark.storage.StorageLevel
 import spark.jobserver._
+import com.typesafe.config.Config
 
 import scala.util.Try
 
@@ -14,6 +15,9 @@ import scala.util.Try
   * Common functionality, encapsulating the fact that we want to run tests outside of jobserver as well.
   */
 object Common extends Serializable {
+
+  // TODO: versions should be argument to versionMatch, no globals!
+  val VERSIONS = Set("v1", "v2", "t1")
 
   implicit def rddPersister[T] : NamedObjectPersister[NamedRDD[T]] = new RDDPersister[T]
   implicit def broadcastPersister[U] : NamedObjectPersister[NamedBroadcast[U]] = new BroadcastPersister[U]
@@ -81,5 +85,23 @@ object Common extends Serializable {
       initialize.getGenes
     }
   }
+
+  def runTests(configs:Seq[(String, (Option[String] => Boolean, String))], config:Config) = {
+    val configsExtracted = configs.map(c => (Try(config.getString(c._1)).toOption, c._2))
+    val testsRun = configsExtracted.map { case (value, (func, error)) => (func(value), error) }
+
+    testsRun.reduce((a, b) => (a, b) match {
+      case ((true, l), (true, r)) => (true, "")
+      case ((true, l), (false, r)) => (false, r)
+      case ((false, l), (true, r)) => (false, l)
+      case ((false, l), (false, r)) => (false, l + ", " + r)
+    })
+  }
+
+  def isDefined(x: Option[String]):Boolean = x.isDefined
+  def isNotEmpty(x: Option[String]):Boolean = x.exists(_.trim != "")
+
+  def versionMatch(x: Option[String]): Boolean = x.exists(v => VERSIONS contains v)
+
 
 }

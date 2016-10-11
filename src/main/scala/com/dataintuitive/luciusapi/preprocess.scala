@@ -17,18 +17,14 @@ import scala.util.Try
   */
 object preprocess extends SparkJob {
 
-  def isDefined(x: Option[String]):Boolean = x.isDefined
-
-  // TODO: versions should be argument to versionMatch, no globals!
-  val versions = Set("v1", "v2", "t1")
-  def versionMatch(x: Option[String]): Boolean = x.exists(v => versions contains v)
+  import Common._
 
 //  def isCompoundAnnotationsV2(tuple: (Option[String], Option[String])): Boolean = tuple match {
 //    case (ca, v) => (v.getOrElse("vv") == "v2") && ca.isDefined
 //  }
 
   // This is ok if no combination of parameters are required
-  val configs:Seq[(String, (Option[String] => Boolean, String))] = Seq(
+  val mandatoryConfigs:Seq[(String, (Option[String] => Boolean, String))] = Seq(
     ("locationFrom",           (isDefined ,    "locationFrom not defined in POST config")),
     ("locationTo",             (isDefined ,    "locationTo not defined in POST config")  ),
     ("sampleCompoundRelations",(isDefined ,    "sampleCompoundRelations not defined in POST config")  ),
@@ -52,16 +48,7 @@ object preprocess extends SparkJob {
     */
   override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
 
-    val configsExtracted = configs.map(c => (Try(config.getString(c._1)).toOption, c._2))
-    val testsRun = configsExtracted.map{case (value, (func, error)) => (func(value), error)}
-
-    val allTests = testsRun.reduce((a,b) => (a,b) match{
-      case ((true, l), (true, r))  => (true, "")
-      case ((true, l), (false, r)) => (false, r)
-      case ((false, l), (true, r)) => (false, l)
-      case ((false, l), (false, r)) => (false, l + ", " + r)
-    })
-
+    val allTests = runTests(mandatoryConfigs, config)
     if (allTests._1) SparkJobValid
     else SparkJobInvalid(allTests._2)
 
