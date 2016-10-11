@@ -32,11 +32,11 @@ object checkSignature extends SparkJob with NamedRddSupport with Globals {
   override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
 
     val showHelp = Try(config.getString("help")).toOption.isDefined
+    val allTests = runTests(mandatoryConfigs, config)
 
     showHelp match {
       case true => SparkJobInvalid(helpMsg)
       case false => {
-        val allTests = runTests(mandatoryConfigs, config)
         if (allTests._1) SparkJobValid
         else SparkJobInvalid(allTests._2)
       }
