@@ -50,7 +50,7 @@ object Common extends Serializable {
       // This means we're really running within the jobserver, not within a notebook
       sj.namedObjects.update("genes", NamedBroadcast(genes))
     } else {
-      sj.setGenes(genes)
+      initialize.setGenes(genes)
     }
   }
 
@@ -78,7 +78,7 @@ object Common extends Serializable {
       val NamedBroadcast(genes) = sj.namedObjects.get[NamedBroadcast[Genes]]("genes").get
       genes
     } else {
-      sj.getGenes
+      initialize.getGenes
     }
   }
 
