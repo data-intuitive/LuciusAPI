@@ -52,9 +52,30 @@ class compoundsTest extends FunSpec with Matchers with InitBefore {
 
       compounds.validate(sc, thisConfig) should be (SparkJobValid)
 
+      // Specify type, Any does not result in a proper check
       val result = compounds.runJob(sc, thisConfig).asInstanceOf[Map[String,Array[(String,String)]]]
       result.getOrElse("data", Array()) should be (expectedResult("data"))
     }
+
+    it("Should match on regexp - v2") {
+
+      // v2 interface
+      val configBlob =
+      """
+        | {
+        |   query = "BRD-K0131.*"
+        |   version = v2
+        | }
+      """.stripMargin
+
+      val thisConfig = ConfigFactory.parseString(configBlob).withFallback(baseConfig)
+
+      compounds.validate(sc, thisConfig) should be (SparkJobValid)
+
+      val result = compounds.runJob(sc, thisConfig).asInstanceOf[Map[String,Array[(String,String)]]]
+      result.getOrElse("data", Array()).length should be > 0
+    }
+
 
     it("Should return the correct result - v1") {
 
