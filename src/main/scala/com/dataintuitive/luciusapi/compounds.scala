@@ -15,16 +15,16 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
 
   import Common._
 
-  override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
-
-    val helpMsg =
-      s"""Given a regexp for a compound jnjs, returns a list of compounds and corresponding samples in the database matching the query.
-         |
+  val helpMsg =
+    s"""Given a regexp for a compound jnjs, returns a list of compounds and corresponding samples in the database matching the query.
+        |
          | Options:
-         |
+        |
          | - version: "v1" or "v2", depending on which version of the interface is required. (default = 'v1')
-         | - query: regular expression matching the compounds jnjs (default = '.*')
+        | - query: regular expression matching the compounds jnjs (default = '.*')
        """.stripMargin
+
+  override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
 
     val showHelp = Try(config.getString("help")).toOption.isDefined
 
@@ -48,7 +48,7 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
     val resultRDD =
       db
         .filter{sample => sample.compoundAnnotations.compound.jnjs.map(_.matches(compoundQuery)).getOrElse(false) || !compoundSpecified}
-        .map{sample => (sample.compoundAnnotations.compound.jnjs, sample.sampleAnnotations.sample.pwid)}
+        .map{sample => (sample.compoundAnnotations.compound.jnjs.getOrElse("NA"), sample.sampleAnnotations.sample.pwid.getOrElse("NA"))}
 
     version match {
       // v1: Return just the tuples (jnjs, pwid)
@@ -58,8 +58,8 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
       }
       // v2: Return information about what is returned as well
       case "v2" =>  {
-        if (compoundSpecified) Map("info" -> s"Result for query $compoundQuery", "result" -> resultRDD.collect)
-        else Map("info" -> "First 10 matches for all compounds ", "result" -> resultRDD.take(10))
+        if (compoundSpecified) Map("info" -> s"Result for query $compoundQuery", "data" -> resultRDD.collect)
+        else Map("info" -> "First 10 matches for all compounds ", "data" -> resultRDD.take(10))
       }
       // _: Falling back to v1
       case _    =>  {
