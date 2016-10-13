@@ -12,6 +12,8 @@ import org.scalatest.{FunSpec, Matchers}
   */
 class compoundsTest extends FunSpec with Matchers with InitBefore {
 
+  import compounds._
+
   // Init
 
   val baseConfig = ConfigFactory.load()
@@ -28,7 +30,7 @@ class compoundsTest extends FunSpec with Matchers with InitBefore {
 
       val thisConfig = ConfigFactory.parseString(configBlob).withFallback(baseConfig)
 
-      compounds.validate(sc, thisConfig) should be (SparkJobInvalid(compounds.helpMsg))
+      validate(sc, thisConfig) should be (SparkJobInvalid(helpMsg))
     }
 
     it("Should return the correct result - v2") {
@@ -44,17 +46,15 @@ class compoundsTest extends FunSpec with Matchers with InitBefore {
 
       val thisConfig = ConfigFactory.parseString(configBlob).withFallback(baseConfig)
 
-      val expectedResult =
-        Map(
-          "info" -> "Result for query BRD-K01311880",
-          "data" -> Array(("BRD-K01311880", "BRD-K01311880"))
-      )
+      val expectedResult:OutputData =
+          Array(("BRD-K01311880", "BRD-K01311880"))
 
-      compounds.validate(sc, thisConfig) should be (SparkJobValid)
+      validate(sc, thisConfig) should be (SparkJobValid)
 
       // Specify type, Any does not result in a proper check
-      val result = compounds.runJob(sc, thisConfig).asInstanceOf[Map[String,Array[(String,String)]]]
-      result.getOrElse("data", Array()) should be (expectedResult("data"))
+      val result = runJob(sc, thisConfig).asInstanceOf[Output]
+      val outputData = result("data").asInstanceOf[OutputData]
+      outputData should be (expectedResult)
     }
 
     it("Should match on regexp - v2") {
@@ -70,12 +70,12 @@ class compoundsTest extends FunSpec with Matchers with InitBefore {
 
       val thisConfig = ConfigFactory.parseString(configBlob).withFallback(baseConfig)
 
-      compounds.validate(sc, thisConfig) should be (SparkJobValid)
+      validate(sc, thisConfig) should be (SparkJobValid)
 
-      val result = compounds.runJob(sc, thisConfig).asInstanceOf[Map[String,Array[(String,String)]]]
-      result.getOrElse("data", Array()).length should be > 0
+      val result = runJob(sc, thisConfig).asInstanceOf[Output]
+      val outputData = result("data").asInstanceOf[OutputData]
+      outputData.length should be > 0
     }
-
 
     it("Should return the correct result - v1") {
 
@@ -92,27 +92,28 @@ class compoundsTest extends FunSpec with Matchers with InitBefore {
 
       val expectedResult = Array(("BRD-K01311880", "BRD-K01311880"))
 
-      compounds.validate(sc, thisConfig) should be (SparkJobValid)
-      compounds.runJob(sc, thisConfig) should be (expectedResult)
+      validate(sc, thisConfig) should be (SparkJobValid)
+      runJob(sc, thisConfig).asInstanceOf[OutputData] should be (expectedResult)
     }
 
-    it("Should return 10 compounds when no query is given") {
+    it("Should return 100 compounds when large result set") {
 
       // v1 interface returns no "info"
       val configBlob =
       """
         | {
         |   version = v1
+        |   query = ".*"
         | }
       """.stripMargin
 
       val thisConfig = ConfigFactory.parseString(configBlob).withFallback(baseConfig)
 
-      compounds.validate(sc, thisConfig) should be (SparkJobValid)
-      val result = compounds.runJob(sc, thisConfig).asInstanceOf[Array[(String,String)]]
-      result.length should be (10)
-    }
+      validate(sc, thisConfig) should be (SparkJobValid)
 
+      val result = runJob(sc, thisConfig).asInstanceOf[OutputData]
+      result.length should be (100)
+    }
 
   }
 

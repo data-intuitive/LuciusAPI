@@ -11,14 +11,25 @@ import scala.util.Try
   *
   * Please note that
   *
-  * - if the query is omitted, *ALL* compounds are matched (*) but only the first 10 are returned.
-  * - A query can be in two forms:
+  * - if the result is larger than 100 entries, only the first 100 are shown.
+  * - A `query` can be in two forms:
   *   1. A simple string: a match is done with compounds that start with this string
   *   2. A regexp: a match is done on the regexp
   */
 object compounds extends SparkJob with NamedRddSupport with Globals {
 
   import Common._
+
+  type Output = Map[String, Any]
+  type OutputData = Array[(String, String)]
+
+  // For backward compatibility, we do not check on version.
+  val simpleChecks:SingleParValidations = Seq(
+    ("query",   (isDefined ,    "query not defined in POST config")),
+    ("query",   (isNotEmpty ,   "query is empty in POST config"))
+  )
+
+  val combinedChecks:CombinedParValidations = Seq()
 
   val helpMsg =
     s"""Given a regexp for a compound jnjs, returns a list of compounds and corresponding samples in the database matching the query.
@@ -32,10 +43,15 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
   override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
 
     val showHelp = Try(config.getString("help")).toOption.isDefined
+    val testsSingle = runSingleParValidations(simpleChecks, config)
+    val testsCombined = runCombinedParValidations(combinedChecks, config)
+    val allTests = aggregateValidations(testsSingle ++ testsCombined)
 
-    if (showHelp) SparkJobInvalid(helpMsg)
-    else SparkJobValid
-
+    (showHelp, allTests._1) match {
+      case (true, _) => SparkJobInvalid(helpMsg)
+      case (false, true) => SparkJobValid
+      case (false, false) => SparkJobInvalid(allTests._2)
+    }
   }
 
   override def runJob(sc: SparkContext, config: Config): Any = {
@@ -44,7 +60,6 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
     val version = Try(config.getString("version")).getOrElse("v1")
     // Compound query string
     val compoundQuery:String = Try(config.getString("query")).getOrElse(".*")
-    val compoundSpecified = !(compoundQuery == ".*")
 
     // Load cached data
     val db = retrieveDb(sc, this)
@@ -61,26 +76,27 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
 
     val resultRDD =
       db
-        .filter{sample => sample.compoundAnnotations.compound.jnjs.map(isMatch(_, compoundQuery)).getOrElse(false) || !compoundSpecified}
+        .filter{sample => sample.compoundAnnotations.compound.jnjs.map(isMatch(_, compoundQuery)).getOrElse(false)}
         .map{sample => (sample.compoundAnnotations.compound.jnjs.getOrElse("NA"), sample.sampleAnnotations.sample.pwid.getOrElse("NA"))}
+
+    val limitOutput = (resultRDD.count > 100)
 
     version match {
       // v1: Return just the tuples (jnjs, pwid)
       case "v1" =>  {
-        if (compoundSpecified) resultRDD.collect
-        else resultRDD.take(10)
+        if (!limitOutput) resultRDD.collect
+        else resultRDD.take(100)
       }
       // v2: Return information about what is returned as well
       case "v2" =>  {
-        if (compoundSpecified) Map("info" -> s"Result for query $compoundQuery", "data" -> resultRDD.collect)
-        else Map("info" -> "First 10 matches for all compounds ", "data" -> resultRDD.take(10))
+        if (!limitOutput) Map("info" -> s"Result for query $compoundQuery", "data" -> resultRDD.collect)
+        else Map("info" -> "First 100 matches for all compounds ", "data" -> resultRDD.take(100))
       }
       // _: Falling back to v1
       case _    =>  {
-        if (compoundSpecified) resultRDD.collect
+        if (!limitOutput) resultRDD.collect
         else resultRDD.take(10)
       }
     }
-
   }
 }
