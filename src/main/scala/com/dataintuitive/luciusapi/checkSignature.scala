@@ -4,7 +4,7 @@ import com.typesafe.config.Config
 import org.apache.spark.SparkContext
 import spark.jobserver._
 
-
+import scala.collection.MapLike
 import scala.util.Try
 
 /**
@@ -13,6 +13,9 @@ import scala.util.Try
 object checkSignature extends SparkJob with NamedRddSupport with Globals {
 
   import Common._
+
+  type Output = Map[String, Any]
+  type OutputData = Seq[(String, Boolean)]
 
   val helpMsg =
     s"""Given a a gene signature (symbol, ensembl, probeset, entrez), return if they are contained in L1000 or not.
@@ -23,23 +26,25 @@ object checkSignature extends SparkJob with NamedRddSupport with Globals {
        |
        """.stripMargin
 
-  // This is ok if no combination of parameters are required
-  val mandatoryConfigs:Seq[(String, (Option[String] => Boolean, String))] = Seq(
+  val simpleChecks:SingleParValidations = Seq(
     ("query",   (isDefined ,    "query not defined in POST config")),
     ("query",   (isNotEmpty ,   "query is empty in POST config"))
   )
 
+  val combinedChecks:CombinedParValidations = Seq()
+
+
   override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
 
     val showHelp = Try(config.getString("help")).toOption.isDefined
-    val allTests = runTests(mandatoryConfigs, config)
+    val testsSingle = runSingleParValidations(simpleChecks, config)
+    val testsCombined = runCombinedParValidations(combinedChecks, config)
+    val allTests = aggregateValidations(testsSingle ++ testsCombined)
 
-    showHelp match {
-      case true => SparkJobInvalid(helpMsg)
-      case false => {
-        if (allTests._1) SparkJobValid
-        else SparkJobInvalid(allTests._2)
-      }
+    (showHelp, allTests._1) match {
+      case (true, _) => SparkJobInvalid(helpMsg)
+      case (false, true) => SparkJobValid
+      case (false, false) => SparkJobInvalid(allTests._2)
     }
   }
 
@@ -63,17 +68,15 @@ object checkSignature extends SparkJob with NamedRddSupport with Globals {
 
     val tt = probesetid2symbol ++ ensemblid2symbol ++ entrezid2symbol ++ symbol2symbol
 
-    val l1000OrNot = rawSignature
+    val l1000OrNot:OutputData = rawSignature
                       .map(gene => (gene, tt.get(gene)))
                       .map{case (gene, optionTranslation) => (gene, optionTranslation.isDefined)}
 
     val infoString = s"Signature of length ${l1000OrNot.length} contains ${l1000OrNot.count(_._2)} l1000 genes"
 
     Map(
-      "info"    -> infoString,
-      "data"    -> l1000OrNot,
-      "l1000"   -> l1000OrNot.filter(_._2),
-      "nol1000" -> l1000OrNot.filter(!_._2)
+      "info" -> infoString,
+      "data" -> l1000OrNot
     )
 
   }
