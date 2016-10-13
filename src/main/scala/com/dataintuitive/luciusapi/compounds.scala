@@ -7,14 +7,15 @@ import spark.jobserver._
 import scala.util.Try
 
 /**
-  * Given a regexp for a compound jnjs, returns a list of compounds and corresponding samples in the database matching the query.
+  * Returns a list of compounds and corresponding samples matching a query, optionally with a limit on the number of results.
   *
-  * Please note that
+  * Input:
   *
-  * - if the result is larger than 100 entries, only the first 100 are shown.
-  * - A `query` can be in two forms:
-  *   1. A simple string: a match is done with compounds that start with this string
-  *   2. A regexp: a match is done on the regexp
+  * - __`query`__: Depending on the pattern, a regexp match or `startsWith` is applied (mandatory)
+  *
+  * - __`version`__: v1, v2 or t1 (optional, default is `v1`)
+  *
+  * - __`limit`__: The result size is limited to this number (optional, default is 10)
   */
 object compounds extends SparkJob with NamedRddSupport with Globals {
 
@@ -32,13 +33,13 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
   val combinedChecks:CombinedParValidations = Seq()
 
   val helpMsg =
-    s"""Given a regexp for a compound jnjs, returns a list of compounds and corresponding samples in the database matching the query.
-        |
-        | Options:
-        |
-        | - version: "v1" or "v2", depending on which version of the interface is required. (default = 'v1')
-        | - query: regular expression matching the compounds jnjs (default = '.*')
-       """.stripMargin
+    s"""Returns a list of compounds and corresponding samples matching a query, optionally with a limit on the number of results.
+      |
+      | Input:
+      | - query: Depending on the pattern, a regexp match or `startsWith` is applied (mandatory)
+      | - version: v1, v2 or t1 (optional, default is `v1`)
+      | - limit: The result size is limited to this number (optional, default is 10)
+     """.stripMargin
 
   override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
 
@@ -60,6 +61,7 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
     val version = Try(config.getString("version")).getOrElse("v1")
     // Compound query string
     val compoundQuery:String = Try(config.getString("query")).getOrElse(".*")
+    val limit:Int = Try(config.getString("limit").toInt).getOrElse(10)
 
     // Load cached data
     val db = retrieveDb(sc, this)
@@ -79,24 +81,22 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
         .filter{sample => sample.compoundAnnotations.compound.jnjs.map(isMatch(_, compoundQuery)).getOrElse(false)}
         .map{sample => (sample.compoundAnnotations.compound.jnjs.getOrElse("NA"), sample.sampleAnnotations.sample.pwid.getOrElse("NA"))}
 
-    val limitOutput = (resultRDD.count > 100)
+    val limitOutput = (resultRDD.count > limit)
 
-    version match {
-      // v1: Return just the tuples (jnjs, pwid)
-      case "v1" =>  {
-        if (!limitOutput) resultRDD.collect
-        else resultRDD.take(100)
-      }
+    (version, !limitOutput) match {
       // v2: Return information about what is returned as well
-      case "v2" =>  {
-        if (!limitOutput) Map("info" -> s"Result for query $compoundQuery", "data" -> resultRDD.collect)
-        else Map("info" -> "First 100 matches for all compounds ", "data" -> resultRDD.take(100))
-      }
-      // _: Falling back to v1
-      case _    =>  {
-        if (!limitOutput) resultRDD.collect
-        else resultRDD.take(10)
-      }
+      case ("v2", true)   =>  Map(
+                                  "info"   -> s"Result for query $compoundQuery",
+                                  "header" -> ("jnjs", "pwid"),
+                                  "data"   -> resultRDD.collect
+                              )
+      case ("v2", false)  => Map(
+                                  "info" -> s"First $limit matches for query $compoundQuery",
+                                  "header" -> ("jnjs", "pwid"),
+                                  "data" -> resultRDD.take(limit)
+                              )
+      case (_   , true)   => resultRDD.collect
+      case (_   , false)  => resultRDD.take(limit)
     }
   }
 }

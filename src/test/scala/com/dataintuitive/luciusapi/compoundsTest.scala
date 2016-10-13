@@ -5,11 +5,6 @@ import com.dataintuitive.test.InitBefore
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{FunSpec, Matchers}
 
-/**
-  * Tests for the `preprocess` endpoint.
-  *
-  * TODO: Find a more general approach to this, where a combination of tests is performed automatically.
-  */
 class compoundsTest extends FunSpec with Matchers with InitBefore {
 
   import compounds._
@@ -96,7 +91,7 @@ class compoundsTest extends FunSpec with Matchers with InitBefore {
       runJob(sc, thisConfig).asInstanceOf[OutputData] should be (expectedResult)
     }
 
-    it("Should return 100 compounds when large result set") {
+    it("Should return 10 compounds when large result set") {
 
       // v1 interface returns no "info"
       val configBlob =
@@ -112,8 +107,29 @@ class compoundsTest extends FunSpec with Matchers with InitBefore {
       validate(sc, thisConfig) should be (SparkJobValid)
 
       val result = runJob(sc, thisConfig).asInstanceOf[OutputData]
-      result.length should be (100)
+      result.length should be (10)
     }
+
+  it("result set is configurable") {
+
+    // v1 interface returns no "info"
+    val configBlob =
+    """
+      | {
+      |   version = v1
+      |   query = ".*"
+      |   limit = 5
+      | }
+    """.stripMargin
+
+    val thisConfig = ConfigFactory.parseString(configBlob).withFallback(baseConfig)
+
+    validate(sc, thisConfig) should be (SparkJobValid)
+
+    val result = runJob(sc, thisConfig).asInstanceOf[OutputData]
+    result.length should be (5)
+  }
+
 
   }
 
