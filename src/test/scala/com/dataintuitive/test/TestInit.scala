@@ -4,6 +4,7 @@ import com.dataintuitive.luciusapi.initialize
 import com.typesafe.config.ConfigFactory
 import org.apache.spark.{SparkConf, SparkContext}
 import org.scalatest._
+import org.apache.log4j.{Level, Logger}
 
 object BaseSparkContextSpec {
 
@@ -18,6 +19,7 @@ object BaseSparkContextSpec {
 trait BaseSparkContextSpec {
 
   lazy val sc = BaseSparkContextSpec.sc
+  sc.setLogLevel("ERROR")
 
 }
 
