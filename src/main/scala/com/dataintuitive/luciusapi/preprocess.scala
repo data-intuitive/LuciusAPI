@@ -126,8 +126,7 @@ object preprocess extends SparkJob {
     val genesAsArray:Array[GeneAnnotation] = genes.genes
 
     // Writing to intermediate object format
-    db.saveAsObjectFile(locationTo + "db.of")
-    sc.parallelize(genesAsArray).saveAsObjectFile(locationTo + "genes.of")
+    db.saveAsObjectFile(locationTo + "db")
 
     // Output something to check
     (genes.genes.head, db.first)
