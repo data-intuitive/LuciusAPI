@@ -26,7 +26,22 @@ object initialize extends SparkJob with NamedObjectSupport with Globals {
 
   import Common._
 
-  override def validate(sc: SparkContext, config: Config): SparkJobValidation = SparkJobValid
+  val simpleChecks:SingleParValidations = Seq(
+    ("location",           (isDefined ,    "locationFrom not defined in POST config")),
+    ("geneAnnotations",    (isDefined ,    "geneAnnotations not defined in POST config"))
+  )
+
+  val combinedChecks:CombinedParValidations = Seq()
+
+  override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
+    val testsSingle = runSingleParValidations(simpleChecks, config)
+    val testsCombined = runCombinedParValidations(combinedChecks, config)
+    val allTests = aggregateValidations(testsSingle ++ testsCombined)
+
+    if (allTests._1) SparkJobValid
+    else SparkJobInvalid(allTests._2)
+
+  }
 
   override def runJob(sc: SparkContext, config: Config): Any = {
 
