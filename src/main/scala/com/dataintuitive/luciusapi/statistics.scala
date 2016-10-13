@@ -14,25 +14,31 @@ object statistics extends SparkJob with NamedObjectSupport with Globals {
 
   import Common._
 
-  override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
+  type Output = Map[String, Any]
+  type OutputData = Seq[(String, Any)]
 
-    // TODO
-
+  // No validation required here, except maybe the existence of the RDD
+  // TODO
+  override def validate(sc: SparkContext, config: Config): SparkJobValidation =
     SparkJobValid
-
-  }
 
   override def runJob(sc: SparkContext, config: Config): Any = {
 
     val db = retrieveDb(sc, this)
     val genes = retrieveGenes(sc, this).value
 
-    (
-      ("# samples"   -> db.count),
-      ("# genes"     -> genes.genes.size),
-      ("# compounds" -> db.map(_.compoundAnnotations.compound.name).distinct.count)
+    val outputData:OutputData =
+      Seq(
+        ("samples", db.count),
+        ("genes", genes.genes.size),
+        ("compounds", db.map(_.compoundAnnotations.compound.name).distinct.count)
     )
 
+    Map(
+      "info"   -> "General statistics about the data",
+      "header" -> Seq("statistic", "value"),
+      "data"   -> outputData
+    )
   }
 
 

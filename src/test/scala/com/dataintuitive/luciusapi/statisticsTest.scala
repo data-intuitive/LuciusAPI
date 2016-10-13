@@ -10,6 +10,8 @@ import spark.jobserver.SparkJobValid
   */
 class statisticsTest extends FunSpec with Matchers with InitBefore {
 
+  import statistics._
+
   val baseConfig = ConfigFactory.load()
 
   describe("runJob") {
@@ -27,8 +29,12 @@ class statisticsTest extends FunSpec with Matchers with InitBefore {
     }
 
     it("Should return the correct result") {
-      val expectedResult = (("# samples" -> 41774), ("# genes" -> 20336), ("# compounds" -> 41132))
-      statistics.runJob(sc, thisConfig) should be (expectedResult)
+      val expectedResultData:OutputData = Seq(("samples",41774), ("genes", 20336), ("compounds", 41132))
+
+      val result = statistics.runJob(sc, thisConfig).asInstanceOf[Output]
+      val outputData = result("data").asInstanceOf[OutputData]
+
+      outputData should be (expectedResultData)
     }
 
   }
