@@ -1,7 +1,6 @@
 package com.dataintuitive.luciusapi
 
 import com.dataintuitive.luciuscore.io._
-import com.dataintuitive.luciuscore.Model._
 import com.dataintuitive.luciuscore.GeneModel._
 
 import com.typesafe.config.Config
@@ -19,12 +18,19 @@ object preprocess extends SparkJob {
 
   import Common._
 
-//  def isCompoundAnnotationsV2(tuple: (Option[String], Option[String])): Boolean = tuple match {
-//    case (ca, v) => (v.getOrElse("vv") == "v2") && ca.isDefined
-//  }
+  /**
+    * Paramater validation: for v2, compoundAnnotations have to be provided.
+    */
+  val compoundAnnotationsWhenV2:CombinedParValidator = { case version :: variable :: _ =>
 
-  // This is ok if no combination of parameters are required
-  val mandatoryConfigs:Seq[(String, (Option[String] => Boolean, String))] = Seq(
+    (version, variable) match {
+      case (Some("v2"), None)      => false
+      case _                       => true
+    }
+
+  }
+
+  val simpleChecks:SingleParValidations = Seq(
     ("locationFrom",           (isDefined ,    "locationFrom not defined in POST config")),
     ("locationTo",             (isDefined ,    "locationTo not defined in POST config")  ),
     ("sampleCompoundRelations",(isDefined ,    "sampleCompoundRelations not defined in POST config")  ),
@@ -35,10 +41,9 @@ object preprocess extends SparkJob {
     ("version",                (versionMatch , "version should be either v1, v2 or t1"))
   )
 
-//  val configsCorr = Map(
-//    (("version", "compoundAnnotations"), (isCompoundAnnotationsV2 _, "compoundAnnotations required for v2")),
-//  )
-
+  val combinedChecks:CombinedParValidations = Seq(
+    (Seq("version", "compoundAnnotations"), (compoundAnnotationsWhenV2, "compoundAnnotations required for v2"))
+  )
 
   /**
     * Make sure:
@@ -48,7 +53,10 @@ object preprocess extends SparkJob {
     */
   override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
 
-    val allTests = runTests(mandatoryConfigs, config)
+    val testsSingle = runSingleParValidations(simpleChecks, config)
+    val testsCombined = runCombinedParValidations(combinedChecks, config)
+    val allTests = aggregateValidations(testsSingle ++ testsCombined)
+
     if (allTests._1) SparkJobValid
     else SparkJobInvalid(allTests._2)
 

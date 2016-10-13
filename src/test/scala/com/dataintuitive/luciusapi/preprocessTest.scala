@@ -22,7 +22,7 @@ class preprocessTest extends FlatSpec with BaseSparkContextSpec {
 
   info("Test validation")
 
-  "Validation" should "return no errors if all parameters provided" in {
+  "Validation" should "return no errors if all parameters provided with v1" in {
 
     val thisConfigValid = baseConfig
       .withValue("locationFrom", ConfigValueFactory.fromAnyRef("locFrom"))
@@ -32,6 +32,22 @@ class preprocessTest extends FlatSpec with BaseSparkContextSpec {
       .withValue("geneAnnotations", ConfigValueFactory.fromAnyRef("x"))
       .withValue("tStats", ConfigValueFactory.fromAnyRef("x"))
       .withValue("pStats", ConfigValueFactory.fromAnyRef("x"))
+
+    assert(preprocess.validate(sc, thisConfigValid) === SparkJobValid)
+
+  }
+
+  it should "return no errors if all parameters provided with v2" in {
+
+    val thisConfigValid = baseConfig
+      .withValue("locationFrom", ConfigValueFactory.fromAnyRef("locFrom"))
+      .withValue("locationTo", ConfigValueFactory.fromAnyRef("locTo"))
+      .withValue("version", ConfigValueFactory.fromAnyRef("v1"))
+      .withValue("sampleCompoundRelations", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("geneAnnotations", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("tStats", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("pStats", ConfigValueFactory.fromAnyRef("x"))
+      .withValue("compoundAnnotations", ConfigValueFactory.fromAnyRef("x"))
 
     assert(preprocess.validate(sc, thisConfigValid) === SparkJobValid)
 

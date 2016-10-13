@@ -22,6 +22,15 @@ object Common extends Serializable {
   implicit def rddPersister[T] : NamedObjectPersister[NamedRDD[T]] = new RDDPersister[T]
   implicit def broadcastPersister[U] : NamedObjectPersister[NamedBroadcast[U]] = new BroadcastPersister[U]
 
+  type SinglePar = String
+  type CombinedPar = Seq[String]
+  type SingleParValidator = Option[String] => Boolean
+  type CombinedParValidator = Seq[Option[String]] => Boolean
+  type SingleParValidation = (SinglePar, (SingleParValidator, String))
+  type CombinedParValidation = (CombinedPar, (CombinedParValidator, String))
+  type SingleParValidations = Seq[SingleParValidation]
+  type CombinedParValidations = Seq[CombinedParValidation]
+
   /**
     * Persist the database, depending on the situation:
     *
@@ -86,11 +95,39 @@ object Common extends Serializable {
     }
   }
 
-  def runTests(configs:Seq[(String, (Option[String] => Boolean, String))], config:Config) = {
-    val configsExtracted = configs.map(c => (Try(config.getString(c._1)).toOption, c._2))
-    val testsRun = configsExtracted.map { case (value, (func, error)) => (func(value), error) }
+  def runTests(tests:Seq[(String, (Option[String] => Boolean, String))], config:Config) = {
+    val configsExtracted = tests.map(c => (Try(config.getString(c._1)).toOption, c._2))
+    val t = configsExtracted.map { case (value, (func, error)) => (func(value), error) }
 
-    testsRun.reduce((a, b) => (a, b) match {
+    t.reduce((a, b) => (a, b) match {
+      case ((true, l), (true, r)) => (true, "")
+      case ((true, l), (false, r)) => (false, r)
+      case ((false, l), (true, r)) => (false, l)
+      case ((false, l), (false, r)) => (false, l + ", " + r)
+    })
+  }
+
+  /**
+    * Function that takes a `Seq` of `SingleConfigTest` and performs the tests one by one.
+    */
+  def runSingleParValidations(tests:SingleParValidations, config:Config):Seq[(Boolean, String)] = {
+    val configsExtracted = tests.map(c => (Try(config.getString(c._1)).toOption, c._2))
+    configsExtracted.map { case (value, (func, error)) => (func(value), error) }
+  }
+
+  /**
+    * Function that takes a `Seq` of `CombinedConfigTest` and performs the tests one by one.
+    */
+  def runCombinedParValidations(tests:CombinedParValidations, config:Config):Seq[(Boolean, String)] = {
+    val configsExtracted = tests.map{ case (seqParams, tuple) => (seqParams.map( x => Try(config.getString(x)).toOption), tuple) }
+    configsExtracted.map { case (value, (func, error)) => (func(value), error) }
+  }
+
+  /**
+    * Aggregate results of single and combined validations.
+    */
+  def aggregateValidations(tests:Seq[(Boolean, String)]):(Boolean, String) = {
+    tests.reduce((a, b) => (a, b) match {
       case ((true, l), (true, r)) => (true, "")
       case ((true, l), (false, r)) => (false, r)
       case ((false, l), (true, r)) => (false, l)
@@ -102,6 +139,5 @@ object Common extends Serializable {
   def isNotEmpty(x: Option[String]):Boolean = x.exists(_.trim != "")
 
   def versionMatch(x: Option[String]): Boolean = x.exists(v => VERSIONS contains v)
-
 
 }
