@@ -45,7 +45,7 @@ class checkSignatureTest extends FunSpec with Matchers with InitBefore {
 
       val thisConfig = ConfigFactory.parseString(configBlob).withFallback(baseConfig)
 
-      val expectedResult:OutputData = Seq(("MELK",true), ("BRCA1",true), ("NotKnown",false), ("00000_at",false), ("200814_at",true))
+      val expectedResult:OutputData = Seq(("MELK",true, "MELK"), ("BRCA1",true, "BRCA1"), ("NotKnown",false, ""), ("00000_at",false, ""), ("200814_at",true, "PSME1"))
 
       validate(sc,thisConfig) should be (SparkJobValid)
 

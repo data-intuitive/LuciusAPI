@@ -8,23 +8,25 @@ import scala.collection.MapLike
 import scala.util.Try
 
 /**
-  * Given a a gene signature (symbol, ensembl, probeset, entrez), return if they are contained in L1000 or not.
+  * Returns annotations about genes (exists in l1000, symbol)
+  *
+  * Input:
+  *
+  * - __`query`__: a gene signature where genes can be in any format symbol, ensembl, probeset, entrez (mandatory)
   */
 object checkSignature extends SparkJob with NamedRddSupport with Globals {
 
   import Common._
 
   type Output = Map[String, Any]
-  type OutputData = Seq[(String, Boolean)]
+  type OutputData = Seq[(String, Boolean, String)]
 
   val helpMsg =
-    s"""Given a a gene signature (symbol, ensembl, probeset, entrez), return if they are contained in L1000 or not.
-       |
-       | Options:
-       |
-       | - query: Gene signature or list
-       |
-       """.stripMargin
+    s"""Returns annotations about genes (exists in l1000, symbol).
+     |
+     |Input:
+     |- __`query`__: a gene signature where genes can be in any format symbol, ensembl, probeset, entrez (mandatory)
+     """.stripMargin
 
   val simpleChecks:SingleParValidations = Seq(
     ("query",   (isDefined ,    "query not defined in POST config")),
@@ -50,8 +52,6 @@ object checkSignature extends SparkJob with NamedRddSupport with Globals {
 
   override def runJob(sc: SparkContext, config: Config): Any = {
 
-    // API Version
-    val version = Try(config.getString("version")).getOrElse("v1")
     // Compound query string
     val signatureQuery:String = Try(config.getString("query")).getOrElse("")
     val rawSignature = signatureQuery.split(" ")
@@ -70,13 +70,15 @@ object checkSignature extends SparkJob with NamedRddSupport with Globals {
 
     val l1000OrNot:OutputData = rawSignature
                       .map(gene => (gene, tt.get(gene)))
-                      .map{case (gene, optionTranslation) => (gene, optionTranslation.isDefined)}
+                      .map{case (gene, optionTranslation) =>
+                        (gene, optionTranslation.isDefined, tt.getOrElse(gene,""))}
 
     val infoString = s"Signature of length ${l1000OrNot.length} contains ${l1000OrNot.count(_._2)} l1000 genes"
 
     Map(
-      "info" -> infoString,
-      "data" -> l1000OrNot
+      "info"   -> infoString,
+      "header" -> Seq("gene","l1000?","symbol"),
+      "data"   -> l1000OrNot
     )
 
   }
