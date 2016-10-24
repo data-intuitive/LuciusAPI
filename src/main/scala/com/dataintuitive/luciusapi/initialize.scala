@@ -27,8 +27,8 @@ object initialize extends SparkJob with NamedObjectSupport with Globals {
   import Common._
 
   val simpleChecks:SingleParValidations = Seq(
-    ("location",           (isDefined ,    "locationFrom not defined in POST config")),
-    ("geneAnnotations",    (isDefined ,    "geneAnnotations not defined in POST config"))
+    ("db",              (isDefined , "db location not defined in POST config")),
+    ("geneAnnotations", (isDefined , "geneAnnotations not defined in POST config"))
   )
 
   val combinedChecks:CombinedParValidations = Seq()
@@ -46,8 +46,7 @@ object initialize extends SparkJob with NamedObjectSupport with Globals {
   override def runJob(sc: SparkContext, config: Config): Any = {
 
     // Config
-    val location:String = Try(config.getString("location")).getOrElse("")
-    val base = location
+    val dbString:String = Try(config.getString("db")).getOrElse("")
     val geneAnnotationsString:String = Try(config.getString("geneAnnotations")).get
 
     // Backward compatibility
@@ -57,12 +56,12 @@ object initialize extends SparkJob with NamedObjectSupport with Globals {
     sc.hadoopConfiguration.set("fs.s3n.awsSecretAccessKey", fs_s3_awsSecretAccessKey)
 
     // Loading gene annotations
-    val geneAnnotationsFile = base + geneAnnotationsString
+    val geneAnnotationsFile = geneAnnotationsString
     val genes = GenesIO.loadGenesFromFile(sc, geneAnnotationsFile)
     val broadcast = sc.broadcast(genes)
 
     // Load data
-    val db:RDD[DbRow] = sc.objectFile(location + "db")
+    val db:RDD[DbRow] = sc.objectFile(dbString)
 
     persistDb(sc, this, db)
     persistGenes(sc, this, broadcast)
