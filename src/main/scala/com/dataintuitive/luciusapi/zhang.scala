@@ -65,7 +65,7 @@ object zhang extends SparkJob with NamedRddSupport with Globals {
     val signatureQuery:String = Try(config.getString("query")).getOrElse("")
     val rawSignature = signatureQuery.split(" ")
     // Sort the similarities?
-    val sortResult:Boolean = Try(config.getString("sorted").toBoolean).getOrElse(true)
+    val sortResult:Boolean = Try(config.getString("sorted").toBoolean).getOrElse(false)
 
     // Load cached data
     val db = retrieveDb(sc, this)
