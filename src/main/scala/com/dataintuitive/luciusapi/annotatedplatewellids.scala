@@ -199,18 +199,17 @@ object annotatedplatewellids extends SparkJob with NamedRddSupport with Globals 
       case ("v2", true)   =>  Map(
         "info"   -> s"Annotations for a list of samples",
         "header" -> features,
-        "data"   -> result
+        "data"   -> result.map(_.zip(features).map(_.swap).toMap)
       )
       case ("v2", false)  => Map(
         "info" -> s"Annotations for all samples, limited to $limit results",
         "header" -> features,
-        "data" -> result
+        "data" -> result.map(_.zip(features).map(_.swap).toMap)
       )
-      case (_   , true)   => result.map(_.zip(features).toMap.map(_.swap))
-      case (_   , false)  => result.map(_.zip(features).toMap.map(_.swap))
+      case (_   , true)   => result.map(_.zip(features).map(_.swap).toMap)
+      case (_   , false)  => result.map(_.zip(features).map(_.swap).toMap)
     }
 
   }
 
 }
-
