@@ -10,7 +10,7 @@ export APP="LuciusAPI"
 export CP="com.dataintuitive.luciusapi"
 
 # Version
-export APP_VERSION="1.5.0"
+export APP_VERSION="1.6.0"
 
 # Location
 export APP_PATH="/tmp/api"
