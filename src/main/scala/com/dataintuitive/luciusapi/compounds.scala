@@ -79,7 +79,18 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
     val resultRDD =
       db
         .filter{sample => sample.compoundAnnotations.compound.jnjs.map(isMatch(_, compoundQuery)).getOrElse(false)}
-        .map{sample => (sample.compoundAnnotations.compound.jnjs.getOrElse("NA"), sample.sampleAnnotations.sample.pwid.getOrElse("NA"))}
+        .map(sample => (sample.compoundAnnotations.compound.getJnjs, sample.compoundAnnotations.compound.getName, sample.sampleAnnotations.sample.getPwid))
+
+    val resultRDDasMap = resultRDD
+        .map{case (jnjs, name, pwid) =>
+          Map("jnjs" -> jnjs,
+              "name" -> name,
+              "pwid" -> pwid)
+        }
+
+    val resultRDDv1 = resultRDD
+      .map{case (jnjs, name, pwid) => (jnjs, pwid) }
+
 
     val limitOutput = (resultRDD.count > limit)
 
@@ -87,16 +98,16 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
       // v2: Return information about what is returned as well
       case ("v2", true)   =>  Map(
                                   "info"   -> s"Result for query $compoundQuery",
-                                  "header" -> ("jnjs", "pwid"),
-                                  "data"   -> resultRDD.collect
+                                  "header" -> ("jnjs", "name", "pwid"),
+                                  "data"   -> resultRDDasMap.collect
                               )
       case ("v2", false)  => Map(
                                   "info" -> s"First $limit matches for query $compoundQuery",
-                                  "header" -> ("jnjs", "pwid"),
-                                  "data" -> resultRDD.take(limit)
+                                  "header" -> ("jnjs", "name", "pwid"),
+                                  "data" -> resultRDDasMap.take(limit)
                               )
-      case (_   , true)   => resultRDD.collect
-      case (_   , false)  => resultRDD.take(limit)
+      case (_   , true)   => resultRDDv1.collect
+      case (_   , false)  => resultRDDv1.take(limit)
     }
   }
 }
