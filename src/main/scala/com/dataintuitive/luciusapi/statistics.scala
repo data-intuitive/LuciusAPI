@@ -13,6 +13,7 @@ import scala.util.Try
 object statistics extends SparkJob with NamedObjectSupport with Globals {
 
   import Common._
+  import functions.StatisticsFunctions
 
   type Output = Map[String, Any]
   type OutputData = Seq[(String, Any)]
@@ -24,19 +25,21 @@ object statistics extends SparkJob with NamedObjectSupport with Globals {
 
   override def runJob(sc: SparkContext, config: Config): Any = {
 
+    // Data
     val db = retrieveDb(sc, this)
     val genes = retrieveGenes(sc, this).value
 
-    val outputData:OutputData =
-      Seq(
-        ("samples", db.count),
-        ("genes", genes.genes.size),
-        ("compounds", db.map(_.compoundAnnotations.compound.name).distinct.count)
-    )
+    // Configuration for this endpoint
+    val config:StatisticsFunctions.Config = (db, genes)
+
+    // Run endpoint function
+    val outputInfo   = StatisticsFunctions.info(config)
+    val outputHeader = StatisticsFunctions.header(config)
+    val outputData   = StatisticsFunctions.statistics(config)
 
     Map(
       "info"   -> "General statistics about the data",
-      "header" -> Seq("statistic", "value"),
+      "header" -> outputHeader,
       "data"   -> outputData
     )
   }
