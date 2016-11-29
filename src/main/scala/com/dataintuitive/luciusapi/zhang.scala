@@ -117,7 +117,7 @@ object zhang extends SparkJob with NamedRddSupport with Globals {
       case "v2" => Map(
         "info"   -> infoString,
         "header" -> Seq("index after sorting", "zhang", "original index", "pwid"),
-        "data"   -> result
+        "data"   -> result.map{case (i, z, j, pwid) => Map("indexNew" -> i, "indexOld" -> j, "zhang" -> z, "pwid" -> pwid)}
       )
       case _ => result
     }
