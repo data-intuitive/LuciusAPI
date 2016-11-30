@@ -3,9 +3,7 @@ package com.dataintuitive.luciusapi
 import com.typesafe.config.Config
 import org.apache.spark._
 import spark.jobserver._
-
-import scala.util.Try
-
+import functions.StatisticsFunctions
 
 /**
   * Created by toni on 04/10/16.
@@ -13,10 +11,6 @@ import scala.util.Try
 object statistics extends SparkJob with NamedObjectSupport with Globals {
 
   import Common._
-  import functions.StatisticsFunctions
-
-  type Output = Map[String, Any]
-  type OutputData = Seq[(String, Any)]
 
   // No validation required here, except maybe the existence of the RDD
   // TODO
@@ -29,20 +23,15 @@ object statistics extends SparkJob with NamedObjectSupport with Globals {
     val db = retrieveDb(sc, this)
     val genes = retrieveGenes(sc, this).value
 
-    // Configuration for this endpoint
-    val config:StatisticsFunctions.Config = (db, genes)
-
-    // Run endpoint function
-    val outputInfo   = StatisticsFunctions.info(config)
-    val outputHeader = StatisticsFunctions.header(config)
-    val outputData   = StatisticsFunctions.statistics(config)
+    // Arguments for endpoint functions
+    val input = (db, genes)
+    val parameters = null
 
     Map(
-      "info"   -> "General statistics about the data",
-      "header" -> outputHeader,
-      "data"   -> outputData
+      "info"   -> StatisticsFunctions.info(input, parameters),
+      "header" -> StatisticsFunctions.header(input, parameters),
+      "data"   -> StatisticsFunctions.statistics(input, parameters)
     )
   }
-
 
 }
