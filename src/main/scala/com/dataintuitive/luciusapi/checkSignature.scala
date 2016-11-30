@@ -3,9 +3,8 @@ package com.dataintuitive.luciusapi
 import com.typesafe.config.Config
 import org.apache.spark.SparkContext
 import spark.jobserver._
-
-import scala.collection.MapLike
 import scala.util.Try
+import functions.CheckSignatureFunctions
 
 /**
   * Returns annotations about genes (exists in l1000, symbol)
@@ -54,31 +53,20 @@ object checkSignature extends SparkJob with NamedRddSupport with Globals {
 
     // Compound query string
     val signatureQuery:String = Try(config.getString("query")).getOrElse("")
-    val rawSignature = signatureQuery.split(" ")
+    val rawSignature = signatureQuery.split(" ").toList
 
     // Load cached data
     val db = retrieveDb(sc, this)
     val genes = retrieveGenes(sc, this).value
 
-    // Create dictionary based on l1000 genes
-    val probesetid2symbol = genes.genes.map(x => (x.probesetid, x.symbol)).toMap
-    val ensemblid2symbol  = genes.genes.map(x => (x.ensemblid, x.symbol)).toMap
-    val entrezid2symbol   = genes.genes.map(x => (x.entrezid, x.symbol)).toMap
-    val symbol2symbol   = genes.genes.map(x => (x.symbol, x.symbol)).toMap
-
-    val tt = probesetid2symbol ++ ensemblid2symbol ++ entrezid2symbol ++ symbol2symbol
-
-    val l1000OrNot:OutputData = rawSignature
-                      .map(gene => (gene, tt.get(gene)))
-                      .map{case (gene, optionTranslation) =>
-                        (gene, optionTranslation.isDefined, tt.getOrElse(gene,""))}
-
-    val infoString = s"Signature of length ${l1000OrNot.length} contains ${l1000OrNot.count(_._2)} l1000 genes"
+    // Arguments for endpoint functions
+    val input = (db, genes)
+    val parameters = rawSignature
 
     Map(
-      "info"   -> infoString,
-      "header" -> Seq("gene","l1000?","symbol"),
-      "data"   -> l1000OrNot
+      "info"   -> CheckSignatureFunctions.info(input, parameters),
+      "header" -> CheckSignatureFunctions.header(input, parameters),
+      "data"   -> CheckSignatureFunctions.checkSignature(input, parameters)
     )
 
   }
