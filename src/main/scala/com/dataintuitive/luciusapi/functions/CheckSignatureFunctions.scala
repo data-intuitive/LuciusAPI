@@ -14,6 +14,13 @@ object CheckSignatureFunctions extends Functions {
   type Parameters = List[String]
   type Output = List[Map[String, Any]]
 
+  val helpMsg =
+    s"""Returns annotations about genes (exists in l1000, symbol).
+        |
+     |Input:
+        |- __`query`__: a gene signature where genes can be in any format symbol, ensembl, probeset, entrez (mandatory)
+     """.stripMargin
+
   def info(data:Input, par:Parameters) = s"Check which genes are contained in L1000 from $par"
 
   def header(data:Input, par:Parameters) = s"query (original query gene), inL1000? (if contained), symbol(if in L1000 the symbol it translates to)"

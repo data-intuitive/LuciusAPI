@@ -11,6 +11,8 @@ object StatisticsFunctions extends Functions {
   type Parameters = Null
   type Output = Map[String, Any]
 
+  val helpMsg = "Return general statistics about the dataset.\nNo input is required. Pass null for parameters in Scala"
+
   def info(data:Input, par:Parameters) = "General statistics about the dataset"
 
   def header(data:Input, par:Parameters) = Map("key" -> "value").toString

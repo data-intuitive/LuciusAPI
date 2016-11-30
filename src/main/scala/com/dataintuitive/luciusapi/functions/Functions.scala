@@ -13,6 +13,10 @@ trait Functions {
   type Parameters
   type Output
 
+  val helpMsg:String
+
+  def help:String = helpMsg
+
   def info(data:Input, par:Parameters):String
 
   def header(data:Input, par:Parameters):String

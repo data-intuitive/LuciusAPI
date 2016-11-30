@@ -5,9 +5,6 @@ import org.apache.spark._
 import spark.jobserver._
 import functions.StatisticsFunctions
 
-/**
-  * Created by toni on 04/10/16.
-  */
 object statistics extends SparkJob with NamedObjectSupport with Globals {
 
   import Common._
