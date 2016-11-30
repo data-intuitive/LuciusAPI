@@ -1,9 +1,10 @@
 package com.dataintuitive.luciusapi
 
+import functions.StatisticsFunctions._
+
 import com.typesafe.config.Config
 import org.apache.spark._
 import spark.jobserver._
-import functions.StatisticsFunctions
 
 object statistics extends SparkJob with NamedObjectSupport with Globals {
 
@@ -25,9 +26,9 @@ object statistics extends SparkJob with NamedObjectSupport with Globals {
     val parameters = null
 
     Map(
-      "info"   -> StatisticsFunctions.info(input, parameters),
-      "header" -> StatisticsFunctions.header(input, parameters),
-      "data"   -> StatisticsFunctions.statistics(input, parameters)
+      "info"   -> info(input, parameters),
+      "header" -> header(input, parameters),
+      "data"   -> result(input, parameters)
     )
   }
 

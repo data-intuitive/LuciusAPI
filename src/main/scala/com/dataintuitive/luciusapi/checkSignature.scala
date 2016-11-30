@@ -1,10 +1,11 @@
 package com.dataintuitive.luciusapi
 
+import functions.CheckSignatureFunctions._
+
 import com.typesafe.config.Config
 import org.apache.spark.SparkContext
 import spark.jobserver._
 import scala.util.Try
-import functions.CheckSignatureFunctions
 
 /**
   * Returns annotations about genes (exists in l1000, symbol)
@@ -32,7 +33,7 @@ object checkSignature extends SparkJob with NamedRddSupport with Globals {
     val allTests = aggregateValidations(testsSingle ++ testsCombined)
 
     (showHelp, allTests._1) match {
-      case (true, _) => SparkJobInvalid(CheckSignatureFunctions.helpMsg)
+      case (true, _) => SparkJobInvalid(help)
       case (false, true) => SparkJobValid
       case (false, false) => SparkJobInvalid(allTests._2)
     }
@@ -53,9 +54,9 @@ object checkSignature extends SparkJob with NamedRddSupport with Globals {
     val parameters = rawSignature
 
     Map(
-      "info"   -> CheckSignatureFunctions.info(input, parameters),
-      "header" -> CheckSignatureFunctions.header(input, parameters),
-      "data"   -> CheckSignatureFunctions.checkSignature(input, parameters)
+      "info"   -> info(input, parameters),
+      "header" -> header(input, parameters),
+      "data"   -> result(input, parameters)
     )
 
   }
