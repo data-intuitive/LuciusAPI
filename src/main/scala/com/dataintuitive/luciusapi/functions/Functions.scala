@@ -5,7 +5,12 @@ import com.dataintuitive.luciuscore.Model.DbRow
 import org.apache.spark.rdd.RDD
 
 /**
-  * Created by toni on 30/11/16.
+  * Base trait for the core functionality of the API.
+  *
+  * Every endpoint should have a function object attached to it that
+  * extends this trait and implements its functions. These functions
+  * can be used from the endpoints itself (Spark Jobserver) or from a
+  * notebook by importing the functions themselves.
   */
 trait Functions {
 
