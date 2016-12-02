@@ -1,5 +1,7 @@
 package com.dataintuitive.luciusapi
 
+import functions.CompoundsFunctions._
+
 import com.typesafe.config.Config
 import org.apache.spark.SparkContext
 import spark.jobserver._
@@ -21,9 +23,6 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
 
   import Common._
 
-  type Output = Map[String, Any]
-  type OutputData = Array[(String, String)]
-
   // For backward compatibility, we do not check on version.
   val simpleChecks:SingleParValidations = Seq(
     ("query",   (isDefined ,    "query not defined in POST config")),
@@ -31,15 +30,6 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
   )
 
   val combinedChecks:CombinedParValidations = Seq()
-
-  val helpMsg =
-    s"""Returns a list of compounds and corresponding samples matching a query, optionally with a limit on the number of results.
-      |
-      | Input:
-      | - query: Depending on the pattern, a regexp match or `startsWith` is applied (mandatory)
-      | - version: v1, v2 or t1 (optional, default is `v1`)
-      | - limit: The result size is limited to this number (optional, default is 10)
-     """.stripMargin
 
   override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
 
@@ -57,57 +47,28 @@ object compounds extends SparkJob with NamedRddSupport with Globals {
 
   override def runJob(sc: SparkContext, config: Config): Any = {
 
-    // API Version
+    // API Version, fallback to v1
     val version = Try(config.getString("version")).getOrElse("v1")
-    // Compound query string
+    // Compound query string, fallback to all compounds (safe in combination with limit)
     val compoundQuery:String = Try(config.getString("query")).getOrElse(".*")
+    // Limit on number of results, fallback is 10
     val limit:Int = Try(config.getString("limit").toInt).getOrElse(10)
 
     // Load cached data
     val db = retrieveDb(sc, this)
     val genes = retrieveGenes(sc, this).value
 
-    // Is could distinguish on version as well, but this makes more sense
-    def isMatch(s: String, query:String):Boolean = {
-      // Backward compatbility: Does query contains regexp or just first characters?
-      val hasNonAlpha = compoundQuery.matches("^.*[^a-zA-Z0-9 ].*$")
+    // Arguments for endpoint function
+    val input = (db, genes)
+    val parameters = (version, compoundQuery, limit)
 
-      if (hasNonAlpha) s.matches(query)
-      else s.startsWith(query)
-    }
-
-    val resultRDD =
-      db
-        .filter{sample => sample.compoundAnnotations.compound.jnjs.map(isMatch(_, compoundQuery)).getOrElse(false)}
-        .map(sample => (sample.compoundAnnotations.compound.getJnjs, sample.compoundAnnotations.compound.getName, sample.sampleAnnotations.sample.getPwid))
-
-    val resultRDDasMap = resultRDD
-        .map{case (jnjs, name, pwid) =>
-          Map("jnjs" -> jnjs,
-              "name" -> name,
-              "pwid" -> pwid)
-        }
-
-    val resultRDDv1 = resultRDD
-      .map{case (jnjs, name, pwid) => (jnjs, pwid) }
-
-
-    val limitOutput = (resultRDD.count > limit)
-
-    (version, !limitOutput) match {
-      // v2: Return information about what is returned as well
-      case ("v2", true)   =>  Map(
-                                  "info"   -> s"Result for query $compoundQuery",
-                                  "header" -> ("jnjs", "name", "pwid"),
-                                  "data"   -> resultRDDasMap.collect
-                              )
-      case ("v2", false)  => Map(
-                                  "info" -> s"First $limit matches for query $compoundQuery",
-                                  "header" -> ("jnjs", "name", "pwid"),
-                                  "data" -> resultRDDasMap.take(limit)
-                              )
-      case (_   , true)   => resultRDDv1.collect
-      case (_   , false)  => resultRDDv1.take(limit)
+    version match {
+      case "v2"   =>  Map(
+                          "info"   -> info(input,parameters),
+                          "header" -> header(input, parameters),
+                          "data"   -> result(input, parameters)
+                        )
+      case _   => result(input, parameters)
     }
   }
 }
