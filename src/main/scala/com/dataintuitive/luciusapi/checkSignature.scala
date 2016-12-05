@@ -42,8 +42,8 @@ object checkSignature extends SparkJob with NamedRddSupport with Globals {
   override def runJob(sc: SparkContext, config: Config): Any = {
 
     // Compound query string
-    val signatureQuery:String = Try(config.getString("query")).getOrElse("")
-    val rawSignature = signatureQuery.split(" ").toList
+    val rawSignature:String = Try(config.getString("query")).getOrElse("")
+    val signatureQuery = rawSignature.split(" ").toList
 
     // Load cached data
     val db = retrieveDb(sc, this)
@@ -51,7 +51,7 @@ object checkSignature extends SparkJob with NamedRddSupport with Globals {
 
     // Arguments for endpoint functions
     val input = (db, genes)
-    val parameters = rawSignature
+    val parameters = signatureQuery
 
     Map(
       "info"   -> info(input, parameters),
