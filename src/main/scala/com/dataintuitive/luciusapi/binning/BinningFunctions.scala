@@ -1,5 +1,7 @@
 package com.dataintuitive.luciusapi.binning
 
+import com.dataintuitive.luciuscore.Model.DbRow
+
 import scalaz.Scalaz._
 import org.apache.spark.rdd.RDD
 
@@ -207,6 +209,17 @@ object BinningFunctions {
 
     bins
   }
+
+  def inBin2D(orig:(Index, Zhang), bin:(Int,Int), bins:(Int,Int), maxIdx:Long):Boolean = {
+    val (nrBinsIdx, nrBinsZhang) = bins
+    val (x,y) = bin
+    val (idx, zhang) = orig
+
+    (binIdx(idx, maxIdx, nrBinsIdx) == x) & (binZhang(zhang,nrBinsZhang) == y)
+
+  }
+
+
 
   def bin1D(rdd:RDD[Zhang], nrBinsIdx:Int) = {
 
