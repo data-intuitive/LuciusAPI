@@ -12,6 +12,9 @@ import scalaz.Scalaz._
 
 import scala.util.Try
 
+/**
+  * Endpoint provided for backward compatibility, superseded by `histogram`
+  */
 object targetHistogram extends SparkJob with NamedRddSupport with Globals {
 
   import Common._
