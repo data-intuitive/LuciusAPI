@@ -38,7 +38,7 @@ object targetFrequency extends SparkJob with NamedRddSupport with Globals {
               x.compoundAnnotations.knownTargets.map(_.toList.map(target => Some((target,x.pwid.get))))
             else
               None
-          }.flatMap(x => x.get)
+          }.flatMap(x => x).map(_.get)
 
     val grouped = targets.groupByKey
     val result = grouped.map{case(gene, targetList) => (gene, targetList.size)}
