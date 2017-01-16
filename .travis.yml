@@ -1,3 +1,5 @@
+# Based on https://github.com/aubm/Books-API
+
 env:  
   global:
   - GITHUB_REPO: data-intuitive/LuciusAPI
