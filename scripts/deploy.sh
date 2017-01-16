@@ -21,7 +21,7 @@ postmanerator \
 
 # run our compile script, discussed above
 postmanerator \
-    -collection=postman/luciusAPI.json \
+    -collection=postman/LuciusAPI.json \
     -output=public/index.md \
     -theme=markdown \
     -ignored-request-headers="dbscripts" \
