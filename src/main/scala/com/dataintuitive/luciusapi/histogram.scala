@@ -1,6 +1,7 @@
 package com.dataintuitive.luciusapi
 
 import com.dataintuitive.luciusapi.functions.HistogramFunctions._
+import com.dataintuitive.luciuscore.Model.DbRow
 import com.typesafe.config.Config
 import org.apache.spark.SparkContext
 import spark.jobserver._
@@ -47,13 +48,27 @@ object histogram extends SparkJob with NamedRddSupport with Globals {
     val binsString:String = Try(config.getString("bins")).getOrElse("15")
     val nrBins = binsString.toInt
 
+    // Filters
+    val filterConcentrationString:String = Try(config.getString("filter.concentration")).getOrElse("")
+    val filterConcentrationQuery = filterConcentrationString
+    val filterTypeString:String = Try(config.getString("filter.type")).getOrElse("")
+    val filterTypeQuery = filterTypeString
+    val filterProtocolString:String = Try(config.getString("filter.protocol")).getOrElse("")
+    val filterProtocolQuery = filterProtocolString
+
+    val filters = Map(
+      "concentration" -> filterConcentrationQuery,
+      "type" -> filterTypeQuery,
+      "protocol" -> filterProtocolQuery
+    )
+
     // Load cached data
     val db = retrieveDb(sc, this)
     val genes = retrieveGenes(sc, this).value
 
     // Arguments for endpoint function
     val input = (db, genes)
-    val parameters = (version, signatureQuery, featuresQuery, nrBins)
+    val parameters = (version, signatureQuery, featuresQuery, nrBins, filters)
 
     Map(
       "info"   -> info(input, parameters),

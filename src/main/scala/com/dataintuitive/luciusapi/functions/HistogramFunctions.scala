@@ -14,7 +14,7 @@ import scala.collection.immutable.Map
 object HistogramFunctions extends Functions {
 
   type Input = (RDD[DbRow], Genes)
-  type Parameters = (String, List[String], List[String], Int)
+  type Parameters = (String, List[String], List[String], Int, Map[String, String])
   type Output = Array[Map[String, BigDecimal]]
 
   val helpMsg =
@@ -29,10 +29,33 @@ object HistogramFunctions extends Functions {
   def result(data:Input, par:Parameters) = {
 
     val (db, genes) = data
-    val (version, signatureQuery, featuresQuery, nrBins) = par
+    val (version, signatureQuery, featuresQuery, nrBins, filters) = par
 
     val signatureSpecified = !(signatureQuery.headOption.getOrElse(".*") == ".*")
     val featuresSpecified = (featuresQuery.size >= 2)
+
+    // Filters
+    val filterConcentrationSpecified = filters.getOrElse("concentration", "") != ""
+    def concentrationFilter(sample:DbRow):Boolean =
+      if (filterConcentrationSpecified)
+        sample.sampleAnnotations.sample.concentration.getOrElse("NA").matches(filters("concentration"))
+      else
+        true
+
+    val filterProtocolSpecified = filters.getOrElse("protocol", "") != ""
+    def protocolFilter(sample:DbRow):Boolean =
+      if (filterProtocolSpecified)
+        sample.sampleAnnotations.sample.protocolname.getOrElse("NA").matches(filters("protocol"))
+      else
+        true
+
+    val filterTypeSpecified = filters.getOrElse("type", "") != ""
+    def typeFilter(sample:DbRow):Boolean =
+      if (filterTypeSpecified)
+        sample.compoundAnnotations.compound.ctype.getOrElse("NA").matches(filters("type"))
+      else
+        true
+
 
     // TODO: Make sure we continue with all symbols, or just make the job invalid when it isn't!
     val signature = SymbolSignature(signatureQuery.toArray)
@@ -56,8 +79,12 @@ object HistogramFunctions extends Functions {
     }
 
     // Add Zhang score if signature is present, select features where necessary
+    // filter asap
     val zhangAndFeaturesAddedStrippedSorted =
       db
+        .filter(concentrationFilter)
+        .filter(protocolFilter)
+        .filter(typeFilter)
         .flatMap {
           updateZhang(_, query)
         }
