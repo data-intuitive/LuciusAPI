@@ -1,6 +1,7 @@
 package com.dataintuitive.luciusapi.functions
 
 import com.dataintuitive.luciuscore.GeneModel.Genes
+import com.dataintuitive.luciuscore.utilities.SignedString
 import com.dataintuitive.luciuscore.Model.DbRow
 import org.apache.spark.rdd.RDD
 import scala.collection.immutable.Map
@@ -27,6 +28,8 @@ object CheckSignatureFunctions extends Functions {
 
   def result(data:Input, par:Parameters):Output = {
 
+    implicit def signString(string: String) = new SignedString(string)
+
     val (db, genes) = data
     val rawSignature = par
 
@@ -39,12 +42,12 @@ object CheckSignatureFunctions extends Functions {
     val tt = probesetid2symbol ++ ensemblid2symbol ++ entrezid2symbol ++ symbol2symbol
 
     val l1000OrNot = rawSignature
-      .map(gene => (gene, tt.get(gene)))
+      .map(gene => (gene, tt.get(gene.abs)))
       .map{case (gene, optionTranslation) =>
-        (gene, optionTranslation.isDefined, tt.getOrElse(gene,""))}
+        (gene, optionTranslation.isDefined, tt.getOrElse(gene.abs,""))}
 
     l1000OrNot.map{case (query, inL1000, symbol) =>
-                      Map("query" -> query, "inL1000" -> inL1000, "symbol" -> symbol)
+                      Map("query" -> query, "inL1000" -> inL1000, "symbol" -> (query.sign + symbol))
     }
 
   }
