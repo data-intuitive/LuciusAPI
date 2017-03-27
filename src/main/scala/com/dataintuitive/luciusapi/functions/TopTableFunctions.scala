@@ -12,7 +12,7 @@ import scala.collection.immutable.Map
 object TopTableFunctions extends Functions {
 
   type Input = (RDD[DbRow], Genes)
-  type Parameters = (String, Int, Int, List[String], List[String])
+  type Parameters = (String, Int, Int, List[String], List[String], String)
   type Output = Array[Map[String, Any]]
 
   val helpMsg =
@@ -85,10 +85,13 @@ object TopTableFunctions extends Functions {
   def result(data:Input, par:Parameters) = {
 
     val (db, genes) = data
-    val (version, head, tail, signatureQuery, featuresQuery) = par
+    val (version, head, tail, signatureQuery, featuresQuery, filterConcentration) = par
 
     val signatureSpecified = !(signatureQuery.headOption.getOrElse(".*") == ".*")
     val featuresSpecified = !(featuresQuery.headOption.getOrElse(".*") == ".*")
+
+    def concentrationFilter(sample:DbRow):Boolean =
+      sample.sampleAnnotations.sample.concentration.getOrElse("NA").matches(filterConcentration)
 
     // TODO: Make sure we continue with all symbols, or just make the job invalid when it isn't!
     val signature = SymbolSignature(signatureQuery.toArray)
@@ -113,8 +116,11 @@ object TopTableFunctions extends Functions {
     }
 
     // Add Zhang score if signature is present
+    // Filter as soon as possible
     val zhangAdded:RDD[(Double, DbRow)] =
-      db.flatMap{updateZhang(_, query)}
+      db
+        .filter(concentrationFilter)
+        .flatMap{updateZhang(_, query)}
 
     val topN =
       if (head > 0) {

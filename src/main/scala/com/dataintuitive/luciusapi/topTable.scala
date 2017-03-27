@@ -46,14 +46,18 @@ object topTable extends SparkJob with NamedRddSupport with Globals {
     val featuresSpecified = !(featuresString == ".*")
     val featuresQuery = featuresString.split(" ").toList
 
+    // Filter
+    val filterConcentrationString:String = Try(config.getString("filterConcentration")).getOrElse(".*")
+//    val filterConcentrationSpecified = !(filterConcentrationString == ".*")
+    val filterConcentrationQuery = filterConcentrationString
+
     // Load cached data
     val db = retrieveDb(sc, this)
     val genes = retrieveGenes(sc, this).value
 
     // Arguments for endpoint function
     val input = (db, genes)
-    val parameters = (version, head, tail, signatureQuery, featuresQuery)
-
+    val parameters = (version, head, tail, signatureQuery, featuresQuery, filterConcentrationQuery)
 
     version match {
       case "v2" =>  Map(
