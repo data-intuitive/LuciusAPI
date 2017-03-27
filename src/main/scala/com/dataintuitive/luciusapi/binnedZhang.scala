@@ -61,13 +61,27 @@ object binnedZhang extends SparkJob with NamedRddSupport with Globals {
     val binsX = Try(config.getString("binsX").toInt).getOrElse(20)
     val binsY = Try(config.getString("binsY").toInt).getOrElse(20)
 
+    // Filters
+    val filterConcentrationString:String = Try(config.getString("filter.concentration")).getOrElse("")
+    val filterConcentrationQuery = filterConcentrationString
+    val filterTypeString:String = Try(config.getString("filter.type")).getOrElse("")
+    val filterTypeQuery = filterTypeString
+    val filterProtocolString:String = Try(config.getString("filter.protocol")).getOrElse("")
+    val filterProtocolQuery = filterProtocolString
+
+    val filters = Map(
+      "concentration" -> filterConcentrationQuery,
+      "type" -> filterTypeQuery,
+      "protocol" -> filterProtocolQuery
+    )
+
     // Load cached data
     val db = retrieveDb(sc, this)
     val genes = retrieveGenes(sc, this).value
 
     // Arguments for endpoint functions
     val input = (db, genes)
-    val parameters = (signatureQuery, binsX, binsY)
+    val parameters = (signatureQuery, binsX, binsY, filters)
 
     Map(
         "info"   -> info(input, parameters),

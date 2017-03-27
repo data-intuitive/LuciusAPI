@@ -14,7 +14,7 @@ import scala.collection.immutable.Map
 object BinnedZhangFunctions extends Functions {
 
   type Input = (RDD[DbRow], Genes)
-  type Parameters = (Array[String], Int, Int)
+  type Parameters = (Array[String], Int, Int, Map[String, String])
   type Output = Seq[Map[String, Any]]
 
   val helpMsg =
@@ -28,10 +28,33 @@ object BinnedZhangFunctions extends Functions {
   def result(data:Input, par:Parameters) = {
 
     val (db, genes) = data
-    val (rawSignature, binsX, binsY) = par
+    val (rawSignature, binsX, binsY, filters) = par
 
     // TODO: Make sure we continue with all symbols, or just make the job invalid when it isn't!
     val signature = SymbolSignature(rawSignature)
+
+    // Filters
+    val filterConcentrationSpecified = filters.getOrElse("concentration", "") != ""
+    def concentrationFilter(sample:DbRow):Boolean =
+      if (filterConcentrationSpecified)
+        sample.sampleAnnotations.sample.concentration.getOrElse("NA").matches(filters("concentration"))
+      else
+        true
+
+    val filterProtocolSpecified = filters.getOrElse("protocol", "") != ""
+    def protocolFilter(sample:DbRow):Boolean =
+      if (filterProtocolSpecified)
+        sample.sampleAnnotations.sample.protocolname.getOrElse("NA").matches(filters("protocol"))
+      else
+        true
+
+    val filterTypeSpecified = filters.getOrElse("type", "") != ""
+    def typeFilter(sample:DbRow):Boolean =
+      if (filterTypeSpecified)
+        sample.compoundAnnotations.compound.ctype.getOrElse("NA").matches(filters("type"))
+      else
+        true
+
 
     val symbolDict = genes.symbol2ProbesetidDict
     val indexDict = genes.index2ProbesetidDict
@@ -51,7 +74,15 @@ object BinnedZhangFunctions extends Functions {
       }
     }
 
-    val zhangAdded = db.flatMap{updateZhang(_, query)}
+    // Add Zhang score if signature is present
+    // Filter as soon as possible
+    val zhangAdded:RDD[(Double, DbRow)] =
+            db
+              .filter(concentrationFilter)
+              .filter(protocolFilter)
+              .filter(typeFilter)
+              .flatMap{updateZhang(_, query)}
+
     val zhangStripped = zhangAdded.map(_._1)
 
     if (binsY > 0)
