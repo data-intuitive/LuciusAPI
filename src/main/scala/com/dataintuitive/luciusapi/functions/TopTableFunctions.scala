@@ -12,7 +12,7 @@ import scala.collection.immutable.Map
 object TopTableFunctions extends Functions {
 
   type Input = (RDD[DbRow], Genes)
-  type Parameters = (String, Int, Int, List[String], List[String], String)
+  type Parameters = (String, Int, Int, List[String], List[String], Map[String, String])
   type Output = Array[Map[String, Any]]
 
   val helpMsg =
@@ -85,13 +85,32 @@ object TopTableFunctions extends Functions {
   def result(data:Input, par:Parameters) = {
 
     val (db, genes) = data
-    val (version, head, tail, signatureQuery, featuresQuery, filterConcentration) = par
+    val (version, head, tail, signatureQuery, featuresQuery, filters) = par
 
     val signatureSpecified = !(signatureQuery.headOption.getOrElse(".*") == ".*")
     val featuresSpecified = !(featuresQuery.headOption.getOrElse(".*") == ".*")
 
+    // Filters
+    val filterConcentrationSpecified = filters.getOrElse("concentration", "") != ""
     def concentrationFilter(sample:DbRow):Boolean =
-      sample.sampleAnnotations.sample.concentration.getOrElse("NA").matches(filterConcentration)
+      if (filterConcentrationSpecified)
+        sample.sampleAnnotations.sample.concentration.getOrElse("NA").matches(filters("concentration"))
+      else
+        true
+
+    val filterProtocolSpecified = filters.getOrElse("protocol", "") != ""
+    def protocolFilter(sample:DbRow):Boolean =
+      if (filterProtocolSpecified)
+        sample.sampleAnnotations.sample.protocolname.getOrElse("NA").matches(filters("protocol"))
+      else
+        true
+
+    val filterTypeSpecified = filters.getOrElse("type", "") != ""
+    def typeFilter(sample:DbRow):Boolean =
+      if (filterTypeSpecified)
+        sample.compoundAnnotations.compound.ctype.getOrElse("NA").matches(filters("type"))
+      else
+        true
 
     // TODO: Make sure we continue with all symbols, or just make the job invalid when it isn't!
     val signature = SymbolSignature(signatureQuery.toArray)
@@ -120,6 +139,8 @@ object TopTableFunctions extends Functions {
     val zhangAdded:RDD[(Double, DbRow)] =
       db
         .filter(concentrationFilter)
+        .filter(protocolFilter)
+        .filter(typeFilter)
         .flatMap{updateZhang(_, query)}
 
     val topN =
