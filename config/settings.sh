@@ -10,10 +10,11 @@ export APP="LuciusAPI"
 export CP="com.dataintuitive.luciusapi"
 
 # Version
-export APP_VERSION="1.6.0"
+export APP_VERSION="1.6.1"
 
 # Location
-export APP_PATH="/tmp/api"
+export APP_PATH="/tmp/app"
 
 # The config file to be used for initialization, default is docker
-export INIT_CONF="initialize-docker.conf"
+export INIT_CONF="initialize-local.conf"
+
