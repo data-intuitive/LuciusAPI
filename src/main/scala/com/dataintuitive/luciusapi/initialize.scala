@@ -61,7 +61,7 @@ object initialize extends SparkJob with NamedObjectSupport with Globals {
     val broadcast = sc.broadcast(genes)
 
     // Load data
-    val db:RDD[DbRow] = sc.objectFile(dbString)
+    val db:RDD[DbRow] = sc.objectFile(dbString).repartition(24)
 
     persistDb(sc, this, db)
     persistGenes(sc, this, broadcast)
