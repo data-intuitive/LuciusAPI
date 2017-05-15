@@ -43,7 +43,7 @@ object Common extends Serializable {
     val jobServerRunning = Try(sj.namedObjects).toOption
     if (jobServerRunning.isDefined) {
       // This means we're really running within the jobserver, not within a notebook
-      sj.namedObjects.update("db", NamedRDD(db.cache, forceComputation = true, storageLevel = StorageLevel.NONE))
+      sj.namedObjects.update("db", NamedRDD(db.cache, forceComputation = false, storageLevel = StorageLevel.NONE))
     } else {
       sj.setDb(db)
     }
