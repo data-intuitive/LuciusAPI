@@ -42,29 +42,31 @@ object CompoundsFunctions extends Functions {
 
     val resultRDD =
       db
-        .filter{sample => sample.compoundAnnotations.compound.jnjs.exists(isMatch(_, compoundQuery))}
+        .filter{sample => (sample.compoundAnnotations.compound.jnjs.exists(isMatch(_, compoundQuery))
+                          || sample.compoundAnnotations.compound.name.exists(isMatch(_, compoundQuery)) )
+        }
         .map{sample =>
           ( sample.compoundAnnotations.compound.getJnjs,
-            sample.compoundAnnotations.compound.getName,
-            sample.sampleAnnotations.sample.getPwid)}
+            sample.compoundAnnotations.compound.getName)}
+        .countByValue()
+        .keys.toArray
 
     val resultRDDasMap = resultRDD
-      .map{case (jnjs, name, pwid) =>
+      .map{case (jnjs, name) =>
         Map("jnjs" -> jnjs,
-          "name" -> name,
-          "pwid" -> pwid)
+          "name" -> name)
       }
 
     val resultRDDv1 = resultRDD
-      .map{case (jnjs, name, pwid) => (jnjs, pwid) }
+      .map{case (jnjs, name) => (jnjs, name) }
 
 
-    val limitOutput = (resultRDD.count > limit)
+    val limitOutput = (resultRDD.length > limit)
 
     // Should we limit the result set?
     limitOutput match {
       case true  => resultRDDasMap.take(limit)
-      case false => resultRDDasMap.collect
+      case false => resultRDDasMap//.collect
     }
 
   }
