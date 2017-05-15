@@ -66,6 +66,9 @@ object initialize extends SparkJob with NamedObjectSupport with Globals {
     persistDb(sc, this, db)
     persistGenes(sc, this, broadcast)
 
+    // Be sure the db RDD is persisted...
+    db.map(x=>x).count()
+
     "LuciusAPI initialized..."
 
   }
