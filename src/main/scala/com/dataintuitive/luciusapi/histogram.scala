@@ -13,17 +13,24 @@ object histogram extends SparkJob with NamedRddSupport with Globals {
 
   import Common._
 
-  val simpleChecks:SingleParValidations = Seq()
+  val simpleChecks:SingleParValidations = Seq(
+    ("query",   (isDefined ,    "query not defined in POST config")),
+    ("query",   (isNotEmpty ,   "query is empty in POST config"))
+  )
 
   val combinedChecks:CombinedParValidations = Seq()
 
   override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
 
     val showHelp = Try(config.getString("help")).toOption.isDefined
+    val testsSingle = runSingleParValidations(simpleChecks, config)
+    val testsCombined = runCombinedParValidations(combinedChecks, config)
+    val allTests = aggregateValidations(testsSingle ++ testsCombined)
 
-    showHelp match {
-      case true => SparkJobInvalid(helpMsg)
-      case false => SparkJobValid
+    (showHelp, allTests._1) match {
+      case (true, _) => SparkJobInvalid(helpMsg)
+      case (false, true) => SparkJobValid
+      case (false, false) => SparkJobInvalid(allTests._2)
     }
 
   }

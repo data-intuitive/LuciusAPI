@@ -1,7 +1,7 @@
 #!/bin/sh
 
 # Jobserver
-export jobserver="localhost"
+export jobserver="localhost:8090"
 
 # APP NAME
 export APP="LuciusAPI"
@@ -10,10 +10,10 @@ export APP="LuciusAPI"
 export CP="com.dataintuitive.luciusapi"
 
 # Version
-export APP_VERSION="1.6.1"
+export APP_VERSION="1.6.4"
 
 # Location
-export APP_PATH="/tmp/app"
+export APP_PATH="/Users/toni/Dropbox/_Janssen/ComPass/Architecture/LuciusAPI"
 
 # The config file to be used for initialization, default is docker
 export INIT_CONF="initialize-local.conf"
