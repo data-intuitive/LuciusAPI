@@ -27,6 +27,7 @@ object SamplesFunctions extends Functions {
   val CONCENTRATION = Set("concentration", "Concentration")
   val YEAR = Set("year", "Year")
   val TARGETS = Set("targets", "knownTargets", "Targets")
+  val SIGNIFICANTGENES = Set("significantGenes")
 
   def featureByLens[T](lens:DbRow => T)(r:DbRow) = lens(r)
 
@@ -47,6 +48,7 @@ object SamplesFunctions extends Functions {
   val extractYear = featureByLens(_.sampleAnnotations.sample.year.getOrElse("No Year")) _
 
   val extractTargets = featureByLens(_.compoundAnnotations.getKnownTargets.toList) _
+  val extractSignificantGenes = featureByLens(_.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0)) _
 
   def extractFeatures(r:DbRow, features:List[String]) = features.map{ _ match {
     case x if PWID contains x => extractPwid(r)
@@ -63,6 +65,7 @@ object SamplesFunctions extends Functions {
     case x if CONCENTRATION contains x => extractConcentration(r)
     case x if YEAR contains x => extractYear(r)
     case x if TARGETS contains x => extractTargets(r)
+    case x if SIGNIFICANTGENES contains x => extractSignificantGenes(r)
     case _ => "Feature not found"
   }}
 
@@ -93,7 +96,7 @@ object SamplesFunctions extends Functions {
 
     val features = List("id","jnjs", "jnjb", "smiles", "inchikey",
       "compoundname", "Type", "targets", "batch",
-      "plateid", "well", "protocolname", "concentration", "year")
+      "plateid", "well", "protocolname", "concentration", "year", "significantGenes")
 
     val result =
       db
@@ -101,7 +104,7 @@ object SamplesFunctions extends Functions {
           sample.compoundAnnotations.compound.jnjs.exists(isMatch(_, compoundQuery))
         }
       .collect
-      .map(entry => extractFeatures(entry, features))
+      .map(entry => extractFeatures(entry, features) )
 
     result.map(_.zip(features).map(_.swap).toMap)
 

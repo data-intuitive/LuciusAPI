@@ -23,7 +23,7 @@ object StatisticsFunctions extends Functions {
 
     Map("samples"   -> db.count,
         "genes"     -> genes.genes.length,
-        "compounds" -> db.map(_.compoundAnnotations.compound.name).distinct.count
+        "compounds" -> db.map(_.compoundAnnotations.compound.jnjs).distinct.count
     )
   }
 

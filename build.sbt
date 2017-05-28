@@ -1,6 +1,6 @@
 name := "LuciusAPI"
 
-version := "1.6.3"
+version := "1.6.5"
 
 scalaVersion := "2.11.8"
 
