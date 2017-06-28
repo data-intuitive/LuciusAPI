@@ -1,6 +1,6 @@
 name := "LuciusAPI"
 
-version := "1.6.5"
+version := "1.7.0"
 
 scalaVersion := "2.11.8"
 
@@ -11,7 +11,7 @@ resolvers += "Job Server Bintray" at "https://dl.bintray.com/spark-jobserver/mav
 resolvers += "bintray-tverbeiren" at "http://dl.bintray.com/tverbeiren/maven"
 
 libraryDependencies ++= Seq(
-  "com.data-intuitive" %% "luciuscore"        % "2.0.4",
+  "com.data-intuitive" %% "luciuscore"        % "2.2.0",
   "spark.jobserver"    %% "job-server-api"    % "0.7.0a"     % "provided",
   "spark.jobserver"    %% "job-server-extras" % "0.7.0a"     % "provided",
   "org.scalactic"      %% "scalactic"         % "3.0.0"      % "test"    ,

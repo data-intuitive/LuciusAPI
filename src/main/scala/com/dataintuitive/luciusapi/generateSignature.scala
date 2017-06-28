@@ -1,6 +1,7 @@
 package com.dataintuitive.luciusapi
 
 import com.dataintuitive.luciuscore.Model._
+import com.dataintuitive.luciuscore.SignatureModel._
 import com.dataintuitive.luciuscore.TransformationFunctions
 import com.dataintuitive.luciuscore.utilities.SignedString
 import com.typesafe.config.Config
@@ -74,29 +75,29 @@ object generateSignature extends SparkJob with NamedRddSupport with Globals {
     val valueVector = TransformationFunctions.aggregateStats(selection, 0.05)
     val rankVector = TransformationFunctions.stats2RankVector((valueVector, Array()))
 
-    // Convert rank vector to index signature
-    // This is the poor man's approach, not taking into account duplicate entries and such.
-    // Be careful, signature and vector indices are 1-based
-    def rankVector2IndexSignature(v: RankVector) = {
+//    // Convert rank vector to index signature
+//    // This is the poor man's approach, not taking into account duplicate entries and such.
+//    // Be careful, signature and vector indices are 1-based
+//    def rankVector2IndexSignature(v: RankVector) = {
+//
+//      // Be careful: offset 1 for vectors for consistency!
+//      def nonZeroElements(v: RankVector, offset: Int = 1): Array[(Index, Rank)] = {
+//        v.zipWithIndex
+//          .map(x => (x._1, x._2 + offset))
+//          .map(_.swap)
+//          .filter(_._2 != 0.0)
+//      }
+//
+//      val nonzero = nonZeroElements(v)
+//      val asArrayInt = nonzero.map {
+//        case (unsignedIndex, signedRank) => ((signedRank.abs / signedRank) * unsignedIndex).toInt
+//      }
+//      val asArrayString = asArrayInt.map(_.toString)
+//      //      new IndexSignature(asArrayString)
+//      asArrayString
+//    }
 
-      // Be careful: offset 1 for vectors for consistency!
-      def nonZeroElements(v: RankVector, offset: Int = 1): Array[(Index, Rank)] = {
-        v.zipWithIndex
-          .map(x => (x._1, x._2 + offset))
-          .map(_.swap)
-          .filter(_._2 != 0.0)
-      }
-
-      val nonzero = nonZeroElements(v)
-      val asArrayInt = nonzero.map {
-        case (unsignedIndex, signedRank) => ((signedRank.abs / signedRank) * unsignedIndex).toInt
-      }
-      val asArrayString = asArrayInt.map(_.toString)
-      //      new IndexSignature(asArrayString)
-      asArrayString
-    }
-
-    val indexSignature: SignatureType = rankVector2IndexSignature(rankVector)
+    val indexSignature:IndexSignature = TransformationFunctions.rankVector2IndexSignature(rankVector)
 
     // dict's
     val symbolDict = genes.symbol2ProbesetidDict
@@ -104,22 +105,22 @@ object generateSignature extends SparkJob with NamedRddSupport with Globals {
     val indexDict = genes.index2ProbesetidDict
 
     // Transformation index => probesetid
-    implicit def stringExtension(string: String): SignedString = new SignedString(string)
+//    implicit def stringExtension(string: String): SignedString = new SignedString(string)
 
-    val probesetidSignature =
-      indexSignature.map { g =>
-        val translation = indexDict.get(g.abs.toInt)
-        translation.map(go => g.sign + go)
-      }.map(_.getOrElse("OOPS"))
+    val probesetidSignature = indexSignature.translate2Probesetid(indexDict)
+//      indexSignature.map { g =>
+//        val translation = indexDict.get(g.abs.toInt)
+//        translation.map(go => g.sign + go)
+//      }.map(_.getOrElse("OOPS"))
 
     // Transform to symbol
-    val symbolSignature =
-    probesetidSignature.map { g =>
-      val translation = inverseSymbolDict.get(g.abs)
-      translation.map(go => g.sign + go)
-    }.map(_.getOrElse("OOPS"))
+    val symbolSignature = probesetidSignature.translate2Symbol(symbolDict)
+//    probesetidSignature.map { g =>
+//      val translation = inverseSymbolDict.get(g.abs)
+//      translation.map(go => g.sign + go)
+//    }.map(_.getOrElse("OOPS"))
 
-    symbolSignature
+    symbolSignature.signature
     
   }
 }
