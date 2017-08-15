@@ -6,7 +6,7 @@ import org.apache.spark.rdd.RDD
 
 import scala.collection.immutable.Map
 
-object SamplesFunctions extends Functions {
+object CompoundToSamplesFunctions extends Functions {
 
   type Input = (RDD[DbRow], Genes)
   type Parameters = (String, List[String], Int)
@@ -111,6 +111,6 @@ object SamplesFunctions extends Functions {
 
   }
 
-  def samples = result _
+  def compoundToSamples = result _
 
 }

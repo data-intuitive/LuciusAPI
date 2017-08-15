@@ -23,9 +23,8 @@ object targetFrequency extends SparkJob with NamedRddSupport with Globals {
   override def runJob(sc: SparkContext, config: Config): Any = {
 
     // Input
-    val pwidsString:String = Try(config.getString("pwids")).getOrElse(".*")
-    // Are specific pwids specified?
-    val pwidsSpecified = !(pwidsString == ".*")
+    val pwidsString:String = Try(config.getString("pwids")).getOrElse("")
+    val pwidsSpecified = !(pwidsString == "")
     val pwidsQuery = pwidsString.split(" ").toList
 
     // Load cached data
@@ -34,7 +33,7 @@ object targetFrequency extends SparkJob with NamedRddSupport with Globals {
 
     val targets =
           db.flatMap{ x =>
-            if (pwidsQuery.contains(x.pwid.get))
+            if (!pwidsSpecified || pwidsQuery.contains(x.pwid.get))
               x.compoundAnnotations.knownTargets.map(_.toList.map(target => Some((target,x.pwid.get))))
             else
               None
@@ -42,8 +41,13 @@ object targetFrequency extends SparkJob with NamedRddSupport with Globals {
 
     val grouped = targets.groupByKey
     val result = grouped.map{case(gene, targetList) => (gene, targetList.size)}
-//
-    result.collect.sortBy{case(target, count) => -count}
+
+    Map(
+      "info"   -> "",
+      "header" -> "",
+      "data"   -> result.collect.sortBy{case(target, count) => -count}
+    )
+
 
   }
 
