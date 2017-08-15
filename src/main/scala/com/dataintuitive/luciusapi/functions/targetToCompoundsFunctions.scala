@@ -74,7 +74,7 @@ object TargetToCompoundsFunctions extends Functions {
     // This way, the same function can be reused for v1 and v2
     def isMatch(targets: Set[String], query:List[String]):Boolean = {
       // Exact match on one of the entries in the query
-      targets.toList.map(target => query.toSet.contains(target)).reduce( _ || _ )
+      targets.toList.map(target => query.toSet.contains(target)).foldLeft(false)(_||_)
     }
 
     val features = List("jnjs", "jnjb", "smiles", "inchikey", "compoundname", "Type", "targets")
