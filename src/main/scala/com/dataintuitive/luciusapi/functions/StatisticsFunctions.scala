@@ -21,9 +21,27 @@ object StatisticsFunctions extends Functions {
 
     val (db, genes) = data
 
-    Map("samples"   -> db.count,
-        "genes"     -> genes.genes.length,
-        "compounds" -> db.map(_.compoundAnnotations.compound.jnjs).distinct.count
+    val compounds = Map(
+        "total" -> db.filter(_.sampleAnnotations.sample.getProtocolname != "").map(_.compoundAnnotations.compound.jnjs).distinct.count,
+        "mcf7" -> db.filter(_.sampleAnnotations.sample.getProtocolname == "MCF7").map(_.compoundAnnotations.compound.jnjs).distinct.count,
+        "pbmc" -> db.filter(_.sampleAnnotations.sample.getProtocolname == "PBMC").map(_.compoundAnnotations.compound.jnjs).distinct.count
+    )
+
+    val samples = Map(
+        "total" -> db.filter(_.sampleAnnotations.sample.getProtocolname != "").map(_.pwid).distinct.count,
+        "mcf7" -> db.filter(_.sampleAnnotations.sample.getProtocolname == "MCF7").map(_.pwid).distinct.count,
+        "pbmc" -> db.filter(_.sampleAnnotations.sample.getProtocolname == "PBMC").map(_.pwid).distinct.count
+    )
+
+    val informative = Map(
+        "total" -> db.filter(_.sampleAnnotations.sample.getProtocolname != "").filter(sample => sample.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0).count,
+        "mcf7" -> db.filter(_.sampleAnnotations.sample.getProtocolname == "MCF7").filter(sample => sample.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0).count,
+        "pbmc" -> db.filter(_.sampleAnnotations.sample.getProtocolname == "PBMC").filter(sample => sample.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0).count
+    )
+
+    Map("samples"   -> samples,
+        "compounds" -> compounds,
+        "informative" -> informative
     )
   }
 
