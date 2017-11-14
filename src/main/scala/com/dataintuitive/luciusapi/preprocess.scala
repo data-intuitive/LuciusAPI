@@ -2,6 +2,7 @@ package com.dataintuitive.luciusapi
 
 import com.dataintuitive.luciuscore.io._
 import com.dataintuitive.luciuscore.GeneModel._
+import com.dataintuitive.luciuscore.Model._
 
 import com.typesafe.config.Config
 import org.apache.spark._
@@ -63,6 +64,9 @@ object preprocess extends SparkJob {
   }
 
   override def runJob(sc: SparkContext, config: Config): Any = {
+
+    val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+    import sqlContext.implicits._
 
     // API Version
     val version = Try(config.getString("version")).getOrElse("v1")
@@ -126,7 +130,8 @@ object preprocess extends SparkJob {
     val genesAsArray:Array[GeneAnnotation] = genes.genes
 
     // Writing to intermediate object format
-    db.saveAsObjectFile(locationTo)
+    // db.saveAsObjectFile(locationTo)
+    db.toDF.as[DbRow].write.parquet(locationTo + ".parquet")
 //    sc.parallelize(genesAsArray).saveAsObjectFile(locationTo + "genes")
 
     // Output something to check

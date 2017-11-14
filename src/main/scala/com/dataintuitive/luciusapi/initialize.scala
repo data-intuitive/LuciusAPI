@@ -6,6 +6,7 @@ import com.dataintuitive.luciuscore.io.GenesIO
 import com.typesafe.config.Config
 import org.apache.spark._
 import org.apache.spark.rdd._
+import org.apache.spark.sql
 import org.apache.spark.storage.StorageLevel
 import spark.jobserver._
 import spark.jobserver.NamedBroadcast
@@ -45,6 +46,9 @@ object initialize extends SparkJob with NamedObjectSupport with Globals {
 
   override def runJob(sc: SparkContext, config: Config): Any = {
 
+    val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+    import sqlContext.implicits._
+
     // Config
     val dbString:String = Try(config.getString("db")).getOrElse("")
     val geneAnnotationsString:String = Try(config.getString("geneAnnotations")).get
@@ -61,7 +65,7 @@ object initialize extends SparkJob with NamedObjectSupport with Globals {
     val broadcast = sc.broadcast(genes)
 
     // Load data
-    val db:RDD[DbRow] = sc.objectFile(dbString).repartition(24)
+    val db:RDD[DbRow] = sqlContext.read.parquet(dbString).as[DbRow].rdd//.repartition(24)
 
     persistDb(sc, this, db)
     persistGenes(sc, this, broadcast)

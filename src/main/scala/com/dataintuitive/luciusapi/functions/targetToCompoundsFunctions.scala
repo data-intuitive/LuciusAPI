@@ -72,7 +72,7 @@ object TargetToCompoundsFunctions extends Functions {
 
     // I could distinguish on version as well, but this makes more sense
     // This way, the same function can be reused for v1 and v2
-    def isMatch(targets: Set[String], query:List[String]):Boolean = {
+    def isMatch(targets: Seq[String], query:List[String]):Boolean = {
       // Exact match on one of the entries in the query
       targets.toList.map(target => query.toSet.contains(target)).foldLeft(false)(_||_)
     }

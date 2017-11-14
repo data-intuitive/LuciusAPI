@@ -90,11 +90,11 @@ object HistogramFunctions extends Functions {
         }
         .map{case (zhang, record) =>
           (zhang,
-            record.compoundAnnotations.knownTargets.getOrElse(Set()).toList.filter(kt => featuresQuery.contains(kt))
+            record.compoundAnnotations.knownTargets.getOrElse(Seq()).toList.filter(kt => featuresQuery.contains(kt))
             )
 
         }
-        .sortBy(-_._1)
+        // .sortBy(-_._1)
 
     if (featuresSpecified)
       histogram2D(zhangAndFeaturesAddedStrippedSorted, featuresQuery, nrBins, -1.0, 1.0)

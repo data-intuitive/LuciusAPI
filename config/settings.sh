@@ -10,11 +10,11 @@ export APP="LuciusAPI"
 export CP="com.dataintuitive.luciusapi"
 
 # Version
-export APP_VERSION="1.9.0"
+export APP_VERSION="2.0.0"
 
 # Location
 export APP_PATH="/Users/toni/Dropbox/_Janssen/ComPass/Architecture/LuciusAPI"
 
 # The config file to be used for initialization, default is docker
 export INIT_CONF="initialize-local.conf"
-
+export PREPROCESS_CONF="preprocess.conf"

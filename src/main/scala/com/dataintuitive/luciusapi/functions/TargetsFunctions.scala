@@ -35,7 +35,7 @@ object TargetsFunctions extends Functions {
         .map(_.compoundAnnotations)
         .distinct
         .map(compoundAnnotations => 
-            compoundAnnotations.knownTargets.getOrElse(Set()).toList
+            compoundAnnotations.knownTargets.getOrElse(Seq())
         )
         .flatMap{kts => kts}
         .filter{kt => 
