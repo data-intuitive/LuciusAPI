@@ -52,6 +52,7 @@ object initialize extends SparkJob with NamedObjectSupport with Globals {
     // Config
     val dbString:String = Try(config.getString("db")).getOrElse("")
     val geneAnnotationsString:String = Try(config.getString("geneAnnotations")).get
+    val partitions:Int = Try(config.getString("partitions").toInt).getOrElse(24)
 
     // Backward compatibility
     val fs_s3_awsAccessKeyId      = sys.env.get("AWS_ACCESS_KEY_ID").getOrElse("<MAKE SURE KEYS ARE EXPORTED>")
@@ -65,7 +66,7 @@ object initialize extends SparkJob with NamedObjectSupport with Globals {
     val broadcast = sc.broadcast(genes)
 
     // Load data
-    val db:RDD[DbRow] = sqlContext.read.parquet(dbString).as[DbRow].rdd//.repartition(24)
+    val db:RDD[DbRow] = sqlContext.read.parquet(dbString).as[DbRow].rdd.repartition(partitions)
 
     persistDb(sc, this, db)
     persistGenes(sc, this, broadcast)
