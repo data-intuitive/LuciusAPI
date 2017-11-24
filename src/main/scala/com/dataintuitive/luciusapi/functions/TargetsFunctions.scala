@@ -34,6 +34,9 @@ object TargetsFunctions extends Functions {
       db
         .map(_.compoundAnnotations)
         .distinct
+        .filter(_.knownTargets != None)
+        // Some entries in the ingested data set still contain nulls...
+        .filter(!_.knownTargets.get.toSet.contains(null))
         .map(compoundAnnotations => 
             compoundAnnotations.knownTargets.getOrElse(Seq())
         )
