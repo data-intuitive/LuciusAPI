@@ -8,6 +8,7 @@ import org.apache.spark._
 import org.apache.spark.rdd._
 import org.apache.spark.sql
 import org.apache.spark.storage.StorageLevel
+import org.apache.spark.storage.StorageLevel._
 import spark.jobserver._
 import spark.jobserver.NamedBroadcast
 import spark.jobserver.BroadcastPersister
@@ -53,6 +54,7 @@ object initialize extends SparkJob with NamedObjectSupport with Globals {
     val dbString:String = Try(config.getString("db")).getOrElse("")
     val geneAnnotationsString:String = Try(config.getString("geneAnnotations")).get
     val partitions:Int = Try(config.getString("partitions").toInt).getOrElse(24)
+    val storageLevel:String = Try(config.getString("storageLevel").toString).getOrElse("MEMORY_ONLY")
 
     // Backward compatibility
     val fs_s3_awsAccessKeyId      = sys.env.get("AWS_ACCESS_KEY_ID").getOrElse("<MAKE SURE KEYS ARE EXPORTED>")
@@ -65,10 +67,16 @@ object initialize extends SparkJob with NamedObjectSupport with Globals {
     val genes = GenesIO.loadGenesFromFile(sc, geneAnnotationsFile)
     val broadcast = sc.broadcast(genes)
 
+    val sl = storageLevel match {
+        case "MEMORY_ONLY"   => StorageLevel.MEMORY_ONLY
+        case "MEMORY_ONLY_2" => StorageLevel.MEMORY_ONLY_2
+    }
+
     // Load data
     val db:RDD[DbRow] = sqlContext.read.parquet(dbString).as[DbRow].rdd.repartition(partitions)
+    namedObjects.update("db", NamedRDD(db, forceComputation = true, storageLevel = sl))
 
-    persistDb(sc, this, db)
+    // persistDb(sc, this, db)
     persistGenes(sc, this, broadcast)
 
     // Be sure the db RDD is persisted...

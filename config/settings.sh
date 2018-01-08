@@ -10,7 +10,7 @@ export APP="LuciusAPI"
 export CP="com.dataintuitive.luciusapi"
 
 # Version
-export APP_VERSION="2.0.1"
+export APP_VERSION="2.0.2"
 
 # Location
 export APP_PATH="/Users/toni/Dropbox/_Janssen/ComPass/Architecture/LuciusAPI"
