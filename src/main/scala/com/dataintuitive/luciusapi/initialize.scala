@@ -1,19 +1,25 @@
 package com.dataintuitive.luciusapi
 
 import com.dataintuitive.luciuscore.GeneModel._
-import com.dataintuitive.luciuscore.Model._
+import com.dataintuitive.luciuscore.Model.DbRow
 import com.dataintuitive.luciuscore.io.GenesIO
 import com.typesafe.config.Config
-import org.apache.spark._
-import org.apache.spark.rdd._
-import org.apache.spark.sql
+
+import com.typesafe.config.Config
+import org.apache.spark.sql.SparkSession
+import spark.jobserver.SparkSessionJob
+import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
+import org.apache.spark.sql.Dataset
+
+import scala.util.Try
+import org.scalactic._
+import Accumulation._
+
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.storage.StorageLevel._
 import spark.jobserver._
-import spark.jobserver.NamedBroadcast
-import spark.jobserver.BroadcastPersister
-
-import scala.util.Try
+// import spark.jobserver.NamedBroadcast
+// import spark.jobserver.BroadcastPersister
 
 /**
   * Initialize the API by caching the database with sample-compound information
@@ -24,66 +30,122 @@ import scala.util.Try
   * - For Jobserver we use NamedObject support for both the RDD and the dictionary of genes.
   * - For local, we use PersistentRDDs in combination with a new loading of the genes database at every call.
   */
-object initialize extends SparkJob with NamedObjectSupport with Globals {
+object initialize extends SparkSessionJob with Globals with NamedObjectSupport {
 
-  import Common._
+  case class JobData(db: String, geneAnnotations: String, partitions: Int, storageLevel: StorageLevel)
+  type JobOutput = collection.Map[String, Any]
 
-  val simpleChecks:SingleParValidations = Seq(
-    ("db",              (isDefined , "db location not defined in POST config")),
-    ("geneAnnotations", (isDefined , "geneAnnotations not defined in POST config"))
-  )
+ import Common._
 
-  val combinedChecks:CombinedParValidations = Seq()
+  override def validate(sparkSession: SparkSession, runtime: JobEnvironment, config: Config):JobData Or Every[ValidationProblem] = {
 
-  override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
-    val testsSingle = runSingleParValidations(simpleChecks, config)
-    val testsCombined = runCombinedParValidations(combinedChecks, config)
-    val allTests = aggregateValidations(testsSingle ++ testsCombined)
+    val db = paramDb(config)
+    val genes = paramGenes(config)
+    val partitions = paramPartitions(config)
+    val storageLevel = paramStorageLevel(config)
 
-    if (allTests._1) SparkJobValid
-    else SparkJobInvalid(allTests._2)
+    withGood(db, genes) { JobData(_, _, partitions, storageLevel) }
 
   }
 
-  override def runJob(sc: SparkContext, config: Config): Any = {
+  override def runJob(sparkSession: SparkSession, runtime: JobEnvironment, data: JobData): JobOutput = {
 
-    val sqlContext = new org.apache.spark.sql.SQLContext(sc)
-    import sqlContext.implicits._
-
-    // Config
-    val dbString:String = Try(config.getString("db")).getOrElse("")
-    val geneAnnotationsString:String = Try(config.getString("geneAnnotations")).get
-    val partitions:Int = Try(config.getString("partitions").toInt).getOrElse(24)
-    val storageLevel:String = Try(config.getString("storageLevel").toString).getOrElse("MEMORY_ONLY")
+    import sparkSession.implicits._
+    implicit def DataSetPersister[T] : NamedObjectPersister[NamedDataSet[T]] = new DataSetPersister[T]
+    implicit def broadcastPersister[U] : NamedObjectPersister[NamedBroadcast[U]] = new BroadcastPersister[U]
 
     // Backward compatibility
     val fs_s3_awsAccessKeyId      = sys.env.get("AWS_ACCESS_KEY_ID").getOrElse("<MAKE SURE KEYS ARE EXPORTED>")
     val fs_s3_awsSecretAccessKey  = sys.env.get("AWS_SECRET_ACCESS_KEY").getOrElse("<THE SAME>")
-    sc.hadoopConfiguration.set("fs.s3n.awsAccessKeyId", fs_s3_awsAccessKeyId)
-    sc.hadoopConfiguration.set("fs.s3n.awsSecretAccessKey", fs_s3_awsSecretAccessKey)
+    sparkSession.sparkContext.hadoopConfiguration.set("fs.s3n.awsAccessKeyId", fs_s3_awsAccessKeyId)
+    sparkSession.sparkContext.hadoopConfiguration.set("fs.s3n.awsSecretAccessKey", fs_s3_awsSecretAccessKey)
 
-    // Loading gene annotations
-    val geneAnnotationsFile = geneAnnotationsString
-    val genes = GenesIO.loadGenesFromFile(sc, geneAnnotationsFile)
-    val broadcast = sc.broadcast(genes)
-
-    val sl = storageLevel match {
-        case "MEMORY_ONLY"   => StorageLevel.MEMORY_ONLY
-        case "MEMORY_ONLY_2" => StorageLevel.MEMORY_ONLY_2
-    }
+    // Loading gene annotations and broadcast
+    val genes = GenesIO.loadGenesFromFile(sparkSession.sparkContext, data.geneAnnotations)
+    val genesBC = sparkSession.sparkContext.broadcast(genes)
+    val broadcast = runtime.namedObjects.update("genes", NamedBroadcast(genesBC))
 
     // Load data
-    val db:RDD[DbRow] = sqlContext.read.parquet(dbString).as[DbRow].rdd.repartition(partitions)
-    namedObjects.update("db", NamedRDD(db, forceComputation = true, storageLevel = sl))
+    val db = sparkSession.read.parquet(data.db).as[DbRow].repartition(data.partitions) //.rdd.repartition(data.partitions)
+    runtime.namedObjects.update("db", NamedDataSet[DbRow](db, forceComputation = true, storageLevel = data.storageLevel))
 
-    // persistDb(sc, this, db)
-    persistGenes(sc, this, broadcast)
+    // "LuciusAPI initialized..."
 
-    // Be sure the db RDD is persisted...
-    db.map(x=>x).count()
-
-    "LuciusAPI initialized..."
-
+    Map(
+      "info"   -> "Initialization done",
+      "header" -> "None",
+      "data"   -> db.count
+    )
   }
 
 }
+
+
+
+/**
+ * wrapper for named objects of type DataFrame
+ */
+case class NamedDataSet[T](ds: Dataset[T], forceComputation: Boolean,
+                          storageLevel: StorageLevel) extends NamedObject
+
+/**
+ * implementation of a NamedObjectPersister for DataSet objects
+ *
+ */
+class DataSetPersister[T] extends NamedObjectPersister[NamedDataSet[T]] {
+
+  override def persist(namedObj: NamedDataSet[T], name: String) {
+    namedObj match {
+      case NamedDataSet(ds, forceComputation, storageLevel) =>
+        require(!forceComputation || storageLevel != StorageLevel.NONE,
+          "forceComputation implies storageLevel != NONE")
+        //these are not supported by DataFrame:
+        //df.setName(name)
+        //df.getStorageLevel match
+        ds.persist(storageLevel)
+        // perform some action to force computation
+        if (forceComputation) ds.count()
+    }
+  }
+
+  override def unpersist(namedObj: NamedDataSet[T]) {
+    namedObj match {
+      case NamedDataSet(ds, _, _) =>
+        ds.unpersist(blocking = false)
+    }
+  }
+
+  /**
+   * Calls df.persist(), which updates the DataFrame's cached timestamp, meaning it won't get
+   * garbage collected by Spark for some time.
+   * @param namedDF the NamedDataFrame to refresh
+   */
+  override def refresh(namedDS: NamedDataSet[T]): NamedDataSet[T] = namedDS match {
+    case NamedDataSet(ds, _, storageLevel) =>
+      ds.persist(storageLevel)
+      namedDS
+  }
+
+}
+
+
+
+
+
+
+//   val simpleChecks:SingleParValidations = Seq(
+//     ("db",              (isDefined , "db location not defined in POST config")),
+//     ("geneAnnotations", (isDefined , "geneAnnotations not defined in POST config"))
+//   )
+
+//   val combinedChecks:CombinedParValidations = Seq()
+
+//   override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
+//     val testsSingle = runSingleParValidations(simpleChecks, config)
+//     val testsCombined = runCombinedParValidations(combinedChecks, config)
+//     val allTests = aggregateValidations(testsSingle ++ testsCombined)
+
+//     if (allTests._1) SparkJobValid
+//     else SparkJobInvalid(allTests._2)
+
+//   }

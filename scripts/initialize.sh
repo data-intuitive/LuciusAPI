@@ -19,7 +19,7 @@ curl -X DELETE "$jobserver/contexts/$APPLC"
 curl --data-binary "@$APP_PATH/""$APPLC""_2.11-$APP_VERSION-assembly.jar" \
      "$jobserver/jars/$APPLC"
 curl -d '' \
-     $jobserver"/contexts/$APPLC?num-cpu-cores=2&memory-per-node=1g"
+     $jobserver"/contexts/$APPLC?num-cpu-cores=2&memory-per-node=1g&context-factory=spark.jobserver.context.SessionContextFactory"
 curl --data-binary "@$BASE/$CONFIG/$INIT_CONF" \
      "$jobserver/jobs?context=$APPLC&appName=$APPLC&classPath=$CP.initialize"
 

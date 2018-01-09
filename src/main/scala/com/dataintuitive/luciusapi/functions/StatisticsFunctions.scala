@@ -1,13 +1,16 @@
 package com.dataintuitive.luciusapi.functions
 
+import org.apache.spark
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 import com.dataintuitive.luciuscore.GeneModel.Genes
 import com.dataintuitive.luciuscore.Model.DbRow
 import scala.collection.immutable.Map
 
-object StatisticsFunctions extends Functions {
+object StatisticsFunctions extends SessionFunctions {
 
-  type Input = (RDD[DbRow], Genes)
+  type Input = (Dataset[DbRow], Genes)
   type Parameters = Null
   type Output = Map[String, Any]
 
@@ -17,7 +20,9 @@ object StatisticsFunctions extends Functions {
 
   def header(data:Input, par:Parameters) = Map("key" -> "value").toString
 
-  def result(data:Input, par:Parameters) = {
+  def result(data:Input, par:Parameters)(implicit sparkSession:SparkSession) = {
+
+    import sparkSession.implicits._
 
     val (db, genes) = data
 
@@ -45,6 +50,6 @@ object StatisticsFunctions extends Functions {
     )
   }
 
-  def statistics = result _
+//   def statistics = result _
 
 }

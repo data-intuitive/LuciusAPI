@@ -1,28 +1,52 @@
 package com.dataintuitive.luciusapi
 
+// Functions implementation and common code
 import functions.StatisticsFunctions._
+import Common._
 
-import com.typesafe.config.Config
-import org.apache.spark._
+// LuciusCore
+import com.dataintuitive.luciuscore.Model.DbRow
+import com.dataintuitive.luciuscore.GeneModel._
+
+// Jobserver
+import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
 import spark.jobserver._
 
-object statistics extends SparkJob with NamedObjectSupport with Globals {
+// Scala, Scalactic and Typesafe
+import scala.util.Try
+import org.scalactic._
+import Accumulation._
+import com.typesafe.config.Config
 
-  import Common._
+// Spark
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Dataset
 
-  // No validation required here, except maybe the existence of the RDD
-  // TODO
-  override def validate(sc: SparkContext, config: Config): SparkJobValidation =
-    SparkJobValid
+/**
+ * Return relevant metrics and information about the dataset.
+ * 
+ * No input is required, the cached version of the the database is used.
+ */
+object statistics extends SparkSessionJob with NamedObjectSupport {
 
-  override def runJob(sc: SparkContext, config: Config): Any = {
+  case class JobData(db: Dataset[DbRow], genes: Genes)
+  type JobOutput = collection.Map[String, Any]
 
-    // Data
-    val db = retrieveDb(sc, this)
-    val genes = retrieveGenes(sc, this).value
+  override def validate(sparkSession: SparkSession, runtime: JobEnvironment, config: Config): JobData Or Every[ValidationProblem] = {
+
+    val db = getDB(runtime)
+    val genes = getGenes(runtime)
+
+    withGood(db, genes) { JobData(_, _) }
+
+  }
+
+  override def runJob(sparkSession: SparkSession, runtime: JobEnvironment, data: JobData): JobOutput = {
+
+    implicit val thisSession = sparkSession
 
     // Arguments for endpoint functions
-    val input = (db, genes)
+    val input = (data.db, data.genes)
     val parameters = null
 
     Map(
@@ -31,5 +55,5 @@ object statistics extends SparkJob with NamedObjectSupport with Globals {
       "data"   -> result(input, parameters)
     )
   }
-
+      
 }

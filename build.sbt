@@ -1,10 +1,10 @@
 name := "LuciusAPI"
 
-version := "2.0.3"
+version := "2.1.0-SNAPSHOT"
 
 scalaVersion := "2.11.8"
 
-crossScalaVersions := Seq("2.10.6", "2.11.8")
+// crossScalaVersions := Seq("2.10.6", "2.11.8")
 
 resolvers += "Job Server Bintray" at "https://dl.bintray.com/spark-jobserver/maven"
 
@@ -12,12 +12,12 @@ resolvers += "bintray-tverbeiren" at "http://dl.bintray.com/tverbeiren/maven"
 
 libraryDependencies ++= Seq(
   "com.data-intuitive" %% "luciuscore"        % "3.0.0",
-  "spark.jobserver"    %% "job-server-api"    % "0.7.0a"     % "provided",
-  "spark.jobserver"    %% "job-server-extras" % "0.7.0a"     % "provided",
+  "spark.jobserver"    %% "job-server-api"    % "0.8.0"      % "provided",
+  "spark.jobserver"    %% "job-server-extras" % "0.8.0"      % "provided",
   "org.scalactic"      %% "scalactic"         % "3.0.0"      % "test"    ,
   "org.scalatest"      %% "scalatest"         % "3.0.0"      % "test"    ,
-  "org.apache.spark"   %% "spark-core"        % "2.0.1"      % "provided",
-  "org.apache.spark"   %% "spark-sql"         % "2.0.1"      % "provided",
+  "org.apache.spark"   %% "spark-core"        % "2.2.1"      % "provided",
+  "org.apache.spark"   %% "spark-sql"         % "2.2.1"      % "provided",
   "org.scalaz"         %% "scalaz-core"       % "7.2.0"
 )
 

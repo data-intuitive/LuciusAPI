@@ -1,15 +1,29 @@
 package com.dataintuitive.luciusapi
 
-import com.dataintuitive.luciuscore.GeneModel.Genes
+// Functions implementation and common code
+import functions.StatisticsFunctions._
+
+// LuciusCore
 import com.dataintuitive.luciuscore.Model.DbRow
-import org.apache.spark.SparkContext
-import org.apache.spark.broadcast.Broadcast
-import org.apache.spark.rdd.RDD
-import org.apache.spark.storage.StorageLevel
+import com.dataintuitive.luciuscore.GeneModel._
+
+// Jobserver
+import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
 import spark.jobserver._
+
+// Scala, Scalactic and Typesafe
+import scala.util.Try
+import org.scalactic._
+import Accumulation._
 import com.typesafe.config.Config
 
-import scala.util.Try
+// Spark
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Dataset
+import org.apache.spark.storage.StorageLevel
+import org.apache.spark.broadcast.Broadcast
+import org.apache.spark.SparkContext
+import org.apache.spark.rdd.RDD
 
 /**
   * Common functionality, encapsulating the fact that we want to run tests outside of jobserver as well.
@@ -21,6 +35,55 @@ object Common extends Serializable {
 
   implicit def rddPersister[T] : NamedObjectPersister[NamedRDD[T]] = new RDDPersister[T]
   implicit def broadcastPersister[U] : NamedObjectPersister[NamedBroadcast[U]] = new BroadcastPersister[U]
+  implicit def DataSetPersister[T] : NamedObjectPersister[NamedDataSet[T]] = new DataSetPersister[T]
+
+    def getDB(runtime: JobEnvironment):Dataset[DbRow] Or One[ValidationProblem] = {
+    Try {
+        val NamedDataSet(db, _ ,_) = runtime.namedObjects.get[NamedDataSet[DbRow]]("db").get
+        db
+        }
+        .map(db => Good(db))
+        .getOrElse(Bad(One(SingleProblem("Cached DB not available"))))
+}
+
+    def getGenes(runtime: JobEnvironment):Genes Or One[ValidationProblem] = {
+    Try {
+        val NamedBroadcast(genes) = runtime.namedObjects.get[NamedBroadcast[Genes]]("genes").get
+        genes.value
+        }
+        .map(genes => Good(genes))
+        .getOrElse(Bad(One(SingleProblem("Broadcast genes not available"))))
+    }
+
+    def paramDb(config:Config):String Or One[ValidationProblem] = {
+        Try(config.getString("db"))
+            .map(db => Good(db))
+            .getOrElse(Bad(One(SingleProblem("DB config parameter not provided"))))
+    }
+
+    def paramGenes(config:Config):String Or One[ValidationProblem] = {
+        Try(config.getString("geneAnnotations"))
+            .map(ga => Good(ga))
+            .getOrElse(Bad(One(SingleProblem("geneAnnotations config parameter not provided"))))
+    }
+
+    def paramPartitions(config:Config):Int = {
+        // Optional parameter, default is 24
+        Try(config.getString("partitions").toInt)
+            .getOrElse(24)
+    }
+
+    def paramStorageLevel(config:Config):StorageLevel = {
+        // Optional parameter, default is 24
+        Try(config.getString("storageLevel")).toOption
+            .flatMap(_ match {
+                case "MEMORY_ONLY"   => Some(StorageLevel.MEMORY_ONLY)
+                case "MEMORY_ONLY_2" => Some(StorageLevel.MEMORY_ONLY_2)
+                case _               => None
+            })
+            .getOrElse(StorageLevel.MEMORY_ONLY)
+    }
+
 
   type SinglePar = String
   type CombinedPar = Seq[String]
@@ -94,6 +157,10 @@ object Common extends Serializable {
       initialize.getGenes
     }
   }
+
+
+
+
 
   def runTests(tests:Seq[(String, (Option[String] => Boolean, String))], config:Config) = {
     val configsExtracted = tests.map(c => (Try(config.getString(c._1)).toOption, c._2))
