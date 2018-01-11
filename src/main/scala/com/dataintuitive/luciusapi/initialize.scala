@@ -78,14 +78,13 @@ object initialize extends SparkSessionJob with Globals with NamedObjectSupport {
     val genes =
       GenesIO.loadGenesFromFile(sparkSession.sparkContext, data.geneAnnotations)
     val genesBC = sparkSession.sparkContext.broadcast(genes)
-    val broadcast =
-      runtime.namedObjects.update("genes", NamedBroadcast(genesBC))
+    runtime.namedObjects.update("genes", NamedBroadcast(genesBC))
 
     // Load data
     val db = sparkSession.read
       .parquet(data.db)
       .as[DbRow]
-      .repartition(data.partitions) //.rdd.repartition(data.partitions)
+      .repartition(data.partitions)
     runtime.namedObjects.update(
       "db",
       NamedDataSet[DbRow](db, forceComputation = true, storageLevel = data.storageLevel))
