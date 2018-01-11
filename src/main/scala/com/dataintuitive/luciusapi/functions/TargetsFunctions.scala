@@ -3,14 +3,19 @@ package com.dataintuitive.luciusapi.functions
 import com.dataintuitive.luciuscore.GeneModel.Genes
 import com.dataintuitive.luciuscore.Model.DbRow
 import org.apache.spark.rdd.RDD
-
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 import scala.collection.immutable.Map
 
-object TargetsFunctions extends Functions {
+object TargetsFunctions extends SessionFunctions {
 
-  type Input = (RDD[DbRow], Genes)
-  type Parameters = (String, String, Int)
-  type Output = Array[Map[String, String]]
+  case class JobData(db: Dataset[DbRow],
+                     genes: Genes,
+                     version: String,
+                     targetQuery: String,
+                     limit: Int)
+
+  type JobOutput = Array[Map[String, String]]
 
   val helpMsg =
     s"""Returns a list of targets based on a query, optionally with a limit on the number of results.
@@ -21,43 +26,43 @@ object TargetsFunctions extends Functions {
         | - limit: The result size is limited to this number (optional, default is 10)
      """.stripMargin
 
-  def info(data:Input, par:Parameters) = s"Result for target query ${par._2}"
+  def info(data: JobData) = s"Result for target query ${data.targetQuery}"
 
-  def header(data:Input, par:Parameters) = "(target, #)"
+  def header(data: JobData) = "(target, #)"
 
-  def result(data:Input, par:Parameters) = {
+  def result(data: JobData)(implicit sparkSession: SparkSession) = {
 
-    val (db, genes) = data
-    val (version, targetQuery, limit) = par
+    import sparkSession.implicits._
+
+    val JobData(db, genes, version, targetQuery, limit) = data
 
     val resultRDD =
-      db
-        .map(_.compoundAnnotations)
+      db.rdd.map(_.compoundAnnotations)
         .distinct
         .filter(_.knownTargets != None)
         // Some entries in the ingested data set still contain nulls...
         .filter(!_.knownTargets.get.toSet.contains(null))
-        .map(compoundAnnotations => 
-            compoundAnnotations.knownTargets.getOrElse(Seq())
-        )
-        .flatMap{kts => kts}
-        .filter{kt => 
-            kt.startsWith(targetQuery)
+        .map(compoundAnnotations => compoundAnnotations.knownTargets.getOrElse(Seq()))
+        .flatMap { kts =>
+          kts
+        }
+        .filter { kt =>
+          kt.startsWith(targetQuery)
         }
         .countByValue()
         .toArray
-        .map{case(target, count) => Map("target" -> target, "count" -> count.toString)}
+        .map { case (target, count) => Map("target" -> target, "count" -> count.toString) }
 
     val limitOutput = (resultRDD.size > limit)
 
     // Should we limit the result set?
     limitOutput match {
       case true  => resultRDD.take(limit)
-      case false => resultRDD//.collect
+      case false => resultRDD //.collect
     }
 
   }
 
-  def targets = result _
+//   def targets = result _
 
 }
