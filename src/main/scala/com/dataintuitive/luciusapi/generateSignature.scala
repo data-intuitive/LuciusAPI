@@ -1,126 +1,79 @@
 package com.dataintuitive.luciusapi
 
-import com.dataintuitive.luciuscore.Model._
-import com.dataintuitive.luciuscore.SignatureModel._
+// Functions implementation and common code
+import Common._
+
+// LuciusCore
+import com.dataintuitive.luciuscore.Model.DbRow
+import com.dataintuitive.luciuscore.GeneModel._
 import com.dataintuitive.luciuscore.TransformationFunctions
-import com.dataintuitive.luciuscore.utilities.SignedString
-import com.typesafe.config.Config
-import org.apache.spark.SparkContext
+import com.dataintuitive.luciuscore.SignatureModel._
+
+// Jobserver
+import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
 import spark.jobserver._
 
+// Scala, Scalactic and Typesafe
 import scala.util.Try
+import org.scalactic._
+import Accumulation._
+import com.typesafe.config.Config
 
-object generateSignature extends SparkJob with NamedRddSupport with Globals {
+// Spark
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Dataset
 
-  import Common._
+object generateSignature extends SparkSessionJob with NamedObjectSupport {
 
-  val simpleChecks:SingleParValidations = Seq()
+  case class JobData(db: Dataset[DbRow], genes: Genes, version: String, samples: List[String])
 
-  val combinedChecks:CombinedParValidations = Seq()
+  type JobOutput = Array[String]
 
-  override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
+  override def validate(sparkSession: SparkSession,
+                        runtime: JobEnvironment,
+                        config: Config): JobData Or Every[ValidationProblem] = {
 
-    SparkJobValid
+    val db = getDB(runtime)
+    val genes = getGenes(runtime)
+    val version = optParamVersion(config)
+    val isValidVersion = validVersion(config)
+    val samples = paramSamples(config)
 
-//    val showHelp = Try(config.getString("help")).toOption.isDefined
-//    val testsSingle = runSingleParValidations(simpleChecks, config)
-//    val testsCombined = runCombinedParValidations(combinedChecks, config)
-//    val allTests = aggregateValidations(testsSingle ++ testsCombined)
-//
-//    (showHelp, allTests._1) match {
-//      case (true, _) => SparkJobInvalid(help)
-//      case (false, true) => SparkJobValid
-//      case (false, false) => SparkJobInvalid(allTests._2)
-//    }
+    (isValidVersion zip
+      withGood(db, genes, samples) {
+        JobData(_, _, version, _)
+      }).map(_._2)
+
   }
 
-  override def runJob(sc: SparkContext, config: Config): Any = {
+  override def runJob(sparkSession: SparkSession,
+                      runtime: JobEnvironment,
+                      data: JobData): JobOutput = {
 
-    // Compound query string
-    val samplesString: String = Try(config.getString("samples")).getOrElse("")
-    val samples:List[String] = samplesString.split(" ").toList
+    implicit val thisSession = sparkSession
 
-    // Load cached data
-    val db = retrieveDb(sc, this)
-    val genes = retrieveGenes(sc, this).value
-
-    // Arguments for endpoint functions
-    //    val input = (db, genes)
-    //    val parameters = signatureQuery
-
-    // Create dictionary based on l1000 genes
-    val probesetid2symbol = genes.genes.map(x => (x.probesetid, x.symbol))
-    val ensemblid2symbol = genes.genes.map(x => (x.ensemblid, x.symbol))
-    val entrezid2symbol = genes.genes.map(x => (x.entrezid, x.symbol))
-    val symbol2symbol = genes.genes.map(x => (x.symbol, x.symbol))
-
-    val tt = probesetid2symbol ++ ensemblid2symbol ++ entrezid2symbol ++ symbol2symbol
-
-
-    // Invert the translation table, but remove identities. This way, we show the gene symbols.
-    // Be careful, the translation_table should not be a map yet, because that way some of
-    // the entries are removed!
-    val itt = tt.map(_.swap).filter { case (x, y) => x != y }.toMap
+    val JobData(db, genes, version, samples) = data
 
     // Start with query compound and retrieve indices
     val selection =
-    db
-      .filter(x => x.pwid.exists(elem => samples.toSet.contains(elem)))
-      .collect
-      .map(x => (x.sampleAnnotations.t.get, x.sampleAnnotations.p.get))
-    //    val tp = selection.
-    //      flatMap{
-    //        x => x.sampleAnnotations.p.get.zip(x.sampleAnnotations.p.get)
-    //      }
+      db.filter(x => x.pwid.exists(elem => samples.toSet.contains(elem)))
+        .collect
+        .map(x => (x.sampleAnnotations.t.get, x.sampleAnnotations.p.get))
     val valueVector = TransformationFunctions.aggregateStats(selection, 0.05)
     val rankVector = TransformationFunctions.stats2RankVector((valueVector, Array()))
 
-//    // Convert rank vector to index signature
-//    // This is the poor man's approach, not taking into account duplicate entries and such.
-//    // Be careful, signature and vector indices are 1-based
-//    def rankVector2IndexSignature(v: RankVector) = {
-//
-//      // Be careful: offset 1 for vectors for consistency!
-//      def nonZeroElements(v: RankVector, offset: Int = 1): Array[(Index, Rank)] = {
-//        v.zipWithIndex
-//          .map(x => (x._1, x._2 + offset))
-//          .map(_.swap)
-//          .filter(_._2 != 0.0)
-//      }
-//
-//      val nonzero = nonZeroElements(v)
-//      val asArrayInt = nonzero.map {
-//        case (unsignedIndex, signedRank) => ((signedRank.abs / signedRank) * unsignedIndex).toInt
-//      }
-//      val asArrayString = asArrayInt.map(_.toString)
-//      //      new IndexSignature(asArrayString)
-//      asArrayString
-//    }
-
-    val indexSignature:IndexSignature = TransformationFunctions.rankVector2IndexSignature(rankVector)
+    val indexSignature: IndexSignature =
+      TransformationFunctions.rankVector2IndexSignature(rankVector)
 
     // dict's
     val symbolDict = genes.symbol2ProbesetidDict
-    val inverseSymbolDict = symbolDict.map(_.swap)
     val indexDict = genes.index2ProbesetidDict
 
-    // Transformation index => probesetid
-//    implicit def stringExtension(string: String): SignedString = new SignedString(string)
-
     val probesetidSignature = indexSignature.translate2Probesetid(indexDict)
-//      indexSignature.map { g =>
-//        val translation = indexDict.get(g.abs.toInt)
-//        translation.map(go => g.sign + go)
-//      }.map(_.getOrElse("OOPS"))
-
-    // Transform to symbol
     val symbolSignature = probesetidSignature.translate2Symbol(symbolDict)
-//    probesetidSignature.map { g =>
-//      val translation = inverseSymbolDict.get(g.abs)
-//      translation.map(go => g.sign + go)
-//    }.map(_.getOrElse("OOPS"))
 
     symbolSignature.signature
-    
+
   }
+
 }
