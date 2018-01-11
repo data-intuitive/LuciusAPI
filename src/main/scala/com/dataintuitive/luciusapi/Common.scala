@@ -74,6 +74,10 @@ object Common extends Serializable {
     Try(config.getString("binsX").toInt).getOrElse(default)
   }
 
+  def optParamBins(config: Config, default: Int = 15): Int = {
+    Try(config.getString("binsX").toInt).getOrElse(default)
+  }
+
   def optParamBinsY(config: Config, default: Int = 20): Int = {
     Try(config.getString("binsY").toInt).getOrElse(default)
   }
