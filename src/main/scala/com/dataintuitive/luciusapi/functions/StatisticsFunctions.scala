@@ -10,44 +10,75 @@ import scala.collection.immutable.Map
 
 object StatisticsFunctions extends SessionFunctions {
 
-  type Input = (Dataset[DbRow], Genes)
-  type Parameters = Null
-  type Output = Map[String, Any]
+  case class JobData(db: Dataset[DbRow], genes: Genes)
+  type JobOutput = Map[String, Any]
 
-  val helpMsg = "Return general statistics about the dataset.\nNo input is required. Pass null for parameters in Scala"
+  val helpMsg =
+    "Return general statistics about the dataset.\nNo input is required. Pass null for parameters in Scala"
 
-  def info(data:Input, par:Parameters) = "General statistics about the dataset"
+  def info(data: JobData) = "General statistics about the dataset"
 
-  def header(data:Input, par:Parameters) = Map("key" -> "value").toString
+  def header(data: JobData) = Map("key" -> "value").toString
 
-  def result(data:Input, par:Parameters)(implicit sparkSession:SparkSession) = {
+  def result(data: JobData)(implicit sparkSession: SparkSession) = {
 
     import sparkSession.implicits._
 
-    val (db, genes) = data
+    val db = data.db
+    val genes = data.genes
 
     val compounds = Map(
-        "total" -> db.filter(_.sampleAnnotations.sample.getProtocolname != "").map(_.compoundAnnotations.compound.jnjs).distinct.count,
-        "mcf7" -> db.filter(_.sampleAnnotations.sample.getProtocolname == "MCF7").map(_.compoundAnnotations.compound.jnjs).distinct.count,
-        "pbmc" -> db.filter(_.sampleAnnotations.sample.getProtocolname == "PBMC").map(_.compoundAnnotations.compound.jnjs).distinct.count
+      "total" -> db
+        .filter(_.sampleAnnotations.sample.getProtocolname != "")
+        .map(_.compoundAnnotations.compound.jnjs)
+        .distinct
+        .count,
+      "mcf7" -> db
+        .filter(_.sampleAnnotations.sample.getProtocolname == "MCF7")
+        .map(_.compoundAnnotations.compound.jnjs)
+        .distinct
+        .count,
+      "pbmc" -> db
+        .filter(_.sampleAnnotations.sample.getProtocolname == "PBMC")
+        .map(_.compoundAnnotations.compound.jnjs)
+        .distinct
+        .count
     )
 
     val samples = Map(
-        "total" -> db.filter(_.sampleAnnotations.sample.getProtocolname != "").map(_.pwid).distinct.count,
-        "mcf7" -> db.filter(_.sampleAnnotations.sample.getProtocolname == "MCF7").map(_.pwid).distinct.count,
-        "pbmc" -> db.filter(_.sampleAnnotations.sample.getProtocolname == "PBMC").map(_.pwid).distinct.count
+      "total" -> db
+        .filter(_.sampleAnnotations.sample.getProtocolname != "")
+        .map(_.pwid)
+        .distinct
+        .count,
+      "mcf7" -> db
+        .filter(_.sampleAnnotations.sample.getProtocolname == "MCF7")
+        .map(_.pwid)
+        .distinct
+        .count,
+      "pbmc" -> db
+        .filter(_.sampleAnnotations.sample.getProtocolname == "PBMC")
+        .map(_.pwid)
+        .distinct
+        .count
     )
 
     val informative = Map(
-        "total" -> db.filter(_.sampleAnnotations.sample.getProtocolname != "").filter(sample => sample.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0).count,
-        "mcf7" -> db.filter(_.sampleAnnotations.sample.getProtocolname == "MCF7").filter(sample => sample.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0).count,
-        "pbmc" -> db.filter(_.sampleAnnotations.sample.getProtocolname == "PBMC").filter(sample => sample.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0).count
+      "total" -> db
+        .filter(_.sampleAnnotations.sample.getProtocolname != "")
+        .filter(sample => sample.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0)
+        .count,
+      "mcf7" -> db
+        .filter(_.sampleAnnotations.sample.getProtocolname == "MCF7")
+        .filter(sample => sample.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0)
+        .count,
+      "pbmc" -> db
+        .filter(_.sampleAnnotations.sample.getProtocolname == "PBMC")
+        .filter(sample => sample.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0)
+        .count
     )
 
-    Map("samples"   -> samples,
-        "compounds" -> compounds,
-        "informative" -> informative
-    )
+    Map("samples" -> samples, "compounds" -> compounds, "informative" -> informative)
   }
 
 //   def statistics = result _

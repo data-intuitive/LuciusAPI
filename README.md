@@ -99,4 +99,12 @@ The first scripts should result (depending on the dataset used) in output like t
 }%
 ```
 
+# New Spark Jobserver API
+
+Since version 0.8.0, a new job API is available in Spark Jobserver. This allows (among other things) for properly parsing the parameters provided via the `POST` request in the `validate` step. This, in turn, allows us to have the output of the `validate` function to be the input of the respective `functions` with the implementation details. As a matter of fact, it renders those functions unneccessary.
+
+As a bonus, default values for optional parameters are filled in already in the `validate` step/function, and not later. This makes everything much more clear from the outset.
+
+
+
 > Please drop a note if you're interested in using/extending/... this project!

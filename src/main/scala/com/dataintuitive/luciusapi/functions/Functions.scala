@@ -15,19 +15,18 @@ import org.apache.spark.sql.{SparkSession, Dataset}
   */
 trait SessionFunctions {
 
-  type Input
-  type Parameters
-  type Output
+  type JobData
+  type JobOutput
 
-  val helpMsg:String
+  val helpMsg: String
 
-  def help:String = helpMsg
+  def help: String = helpMsg
 
-  def info(data:Input, par:Parameters):String
+  def info(data: JobData): String
 
-  def header(data:Input, par:Parameters):String
+  def header(data: JobData): String
 
-  def result(data:Input, par:Parameters)(implicit sparkSession:SparkSession):Output
+  def result(data: JobData)(implicit sparkSession: SparkSession): JobOutput
 
 }
 
@@ -45,14 +44,14 @@ trait Functions {
   type Parameters
   type Output
 
-  val helpMsg:String
+  val helpMsg: String
 
-  def help:String = helpMsg
+  def help: String = helpMsg
 
-  def info(data:Input, par:Parameters):String
+  def info(data: Input, par: Parameters): String
 
-  def header(data:Input, par:Parameters):String
+  def header(data: Input, par: Parameters): String
 
-  def result(data:Input, par:Parameters):Output
+  def result(data: Input, par: Parameters): Output
 
 }
