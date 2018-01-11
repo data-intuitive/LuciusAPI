@@ -117,7 +117,9 @@ object AnnotatedplatewellidsFunctions extends SessionFunctions {
 
   def result(data: JobData)(implicit sparkSession: SparkSession) = {
 
-    val db = data.db
+    import sparkSession.implicits._
+
+    val db = data.db.rdd
     val genes = data.genes
     val version = data.version
     val signatureQuery = data.signatureQuery
@@ -162,10 +164,10 @@ object AnnotatedplatewellidsFunctions extends SessionFunctions {
     // Add Zhang score if signature is present
     val zhangAdded: RDD[(Double, DbRow)] =
       if (signatureSpecified)
-        filteredDb.rdd.flatMap { row =>
+        filteredDb.flatMap { row =>
           updateZhang(row, query)
         } else
-        filteredDb.rdd.map((0.0, _))
+        filteredDb.map((0.0, _))
 
     // Should the output be limited? Only if no pwids or filter are specified
     val limitOutput: Boolean = !pwidsSpecified && (filteredDb.count > limit)
