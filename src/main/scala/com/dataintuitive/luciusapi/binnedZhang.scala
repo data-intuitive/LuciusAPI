@@ -1,93 +1,73 @@
 package com.dataintuitive.luciusapi
 
+// Functions implementation and common code
 import com.dataintuitive.luciusapi.functions.BinnedZhangFunctions._
-import com.typesafe.config.Config
-import org.apache.spark._
+import Common._
+
+// LuciusCore
+import com.dataintuitive.luciuscore.Model.DbRow
+import com.dataintuitive.luciuscore.GeneModel._
+
+// Jobserver
+import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
 import spark.jobserver._
 
+// Scala, Scalactic and Typesafe
 import scala.util.Try
+import org.scalactic._
+import Accumulation._
+import com.typesafe.config.Config
+
+// Spark
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Dataset
 
 /**
-  * Returns the Zhang/similarity scores for the whole database for a given query.
-  *
-  * Input:
-  *
-  * - __`query`__: The gene signature (any notation will do) as a space separated list
-  *
-  * - __`sorted`__: Should the result be sorted on by Zhang score (descending)
-  *
-  * - __`version`__: Version of the API. "v2" returns `info` and `header`.
+  * Returns the binned Zhang/similarity scores for the whole database for a given query.
   *
   * Remark: Make sure you check the signature first, through checkSignature
   */
-object binnedZhang extends SparkJob with NamedRddSupport with Globals {
+object binnedZhang extends SparkSessionJob with NamedObjectSupport {
 
-  import Common._
+  type JobData = functions.BinnedZhangFunctions.JobData
+  type JobOutput = collection.Map[String, Any]
 
-  val simpleChecks:SingleParValidations = Seq(
-    ("query",   (isDefined ,    "query not defined in POST config")),
-    ("query",   (isNotEmpty ,   "query is empty in POST config"))
-  )
+  override def validate(sparkSession: SparkSession,
+                        runtime: JobEnvironment,
+                        config: Config): JobData Or Every[ValidationProblem] = {
 
-  val combinedChecks:CombinedParValidations = Seq()
+    val db = getDB(runtime)
+    val genes = getGenes(runtime)
+    val signature = paramSignature(config).map(_.toArray)
+    val binsX = optParamBinsX(config, 20)
+    val binsY = optParamBinsY(config, 20)
+    val filters = optParamFilters(config)
+    val version = optParamVersion(config)
+    val isValidVersion = validVersion(config)
 
-// TODO: sorted = boolean !
-  override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
-
-    val showHelp = Try(config.getString("help")).toOption.isDefined
-    val testsSingle = runSingleParValidations(simpleChecks, config)
-    val testsCombined = runCombinedParValidations(combinedChecks, config)
-    val allTests = aggregateValidations(testsSingle ++ testsCombined)
-
-    (showHelp, allTests._1) match {
-      case (true, _) => SparkJobInvalid(helpMsg)
-      case (false, true) => SparkJobValid
-      case (false, false) => SparkJobInvalid(allTests._2)
-    }
+    (isValidVersion zip
+      withGood(db, genes, signature) {
+        JobData(_, _, version, _, binsX, binsY, filters)
+      }).map(_._2)
 
   }
 
-  override def runJob(sc: SparkContext, config: Config): Any = {
+  override def runJob(sparkSession: SparkSession,
+                      runtime: JobEnvironment,
+                      data: JobData): JobOutput = {
 
-    // API Version
-    val version = Try(config.getString("version")).getOrElse("v1")
-    // Compound query string
-    val signatureString:String = Try(config.getString("query")).getOrElse("")
-    val signatureQuery = signatureString.split(" ")
-    // Sort the similarities?
-//    val sortResult:Boolean = Try(config.getString("sorted").toBoolean).getOrElse(false)
+    implicit val thisSession = sparkSession
 
-    // Bins in x and y
-    val binsX = Try(config.getString("binsX").toInt).getOrElse(20)
-    val binsY = Try(config.getString("binsY").toInt).getOrElse(20)
+    data.version match {
+      case "v2" =>
+        Map(
+          "info" -> info(data),
+          "header" -> header(data),
+          "data" -> result(data)
+        )
 
-    // Filters
-    val filterConcentrationString:String = Try(config.getString("filter.concentration")).getOrElse("")
-    val filterConcentrationQuery = filterConcentrationString
-    val filterTypeString:String = Try(config.getString("filter.type")).getOrElse("")
-    val filterTypeQuery = filterTypeString
-    val filterProtocolString:String = Try(config.getString("filter.protocol")).getOrElse("")
-    val filterProtocolQuery = filterProtocolString
-
-    val filters = Map(
-      "concentration" -> filterConcentrationQuery,
-      "type" -> filterTypeQuery,
-      "protocol" -> filterProtocolQuery
-    )
-
-    // Load cached data
-    val db = retrieveDb(sc, this)
-    val genes = retrieveGenes(sc, this).value
-
-    // Arguments for endpoint functions
-    val input = (db, genes)
-    val parameters = (signatureQuery, binsX, binsY, filters)
-
-    Map(
-        "info"   -> info(input, parameters),
-        "header" -> header(input, parameters),
-        "data"   -> result(input, parameters)
-      )
+      case _ => Map("result" -> result(data))
+    }
 
   }
 

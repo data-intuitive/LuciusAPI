@@ -46,12 +46,46 @@ object Common extends Serializable {
       .getOrElse(Bad(One(SingleProblem("Signature query not provided"))))
   }
 
+  def paramSorted(config: Config): Boolean Or One[ValidationProblem] = {
+    Try(config.getString("sorted").toBoolean)
+      .map(q => Good(q))
+      .getOrElse(Bad(One(SingleProblem("Parameter sorted not provided or not boolean"))))
+  }
+
+  def optParamBinsX(config: Config, default: Int = 20): Int = {
+    Try(config.getString("binsX").toInt).getOrElse(default)
+  }
+
+  def optParamBinsY(config: Config, default: Int = 20): Int = {
+    Try(config.getString("binsY").toInt).getOrElse(default)
+  }
+
   def optParamSignature(config: Config, default: List[String] = List(".*")): List[String] = {
     Try(config.getString("query").split(" ").toList).getOrElse(default)
   }
 
   def optParamVersion(config: Config, default: String = "v2"): String = {
     Try(config.getString("version")).getOrElse(default)
+  }
+
+  def optParamFilterConcentration(config: Config, default: String = ""): String = {
+    Try(config.getString("filter.concentration")).getOrElse(default)
+  }
+
+  def optParamFilterProtocol(config: Config, default: String = ""): String = {
+    Try(config.getString("filter.protocol")).getOrElse(default)
+  }
+
+  def optParamFilterType(config: Config, default: String = ""): String = {
+    Try(config.getString("filter.type")).getOrElse(default)
+  }
+
+  def optParamFilters(config: Config): Map[String, String] = {
+    Map(
+      "concentration" -> optParamFilterConcentration(config),
+      "type" -> optParamFilterType(config),
+      "protocol" -> optParamFilterProtocol(config)
+    )
   }
 
   def validVersion(config: Config): Boolean Or One[ValidationProblem] = {
