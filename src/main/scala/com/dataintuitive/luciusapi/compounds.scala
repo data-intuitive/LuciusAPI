@@ -1,12 +1,26 @@
 package com.dataintuitive.luciusapi
 
+// Functions implementation and common code
 import functions.CompoundsFunctions._
+import Common._
 
-import com.typesafe.config.Config
-import org.apache.spark.SparkContext
+// LuciusCore
+import com.dataintuitive.luciuscore.Model.DbRow
+import com.dataintuitive.luciuscore.GeneModel._
+
+// Jobserver
+import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
 import spark.jobserver._
 
+// Scala, Scalactic and Typesafe
 import scala.util.Try
+import org.scalactic._
+import Accumulation._
+import com.typesafe.config.Config
+
+// Spark
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Dataset
 
 /**
   * Returns a list of compounds and corresponding samples matching a query, optionally with a limit on the number of results.
@@ -19,56 +33,46 @@ import scala.util.Try
   *
   * - __`limit`__: The result size is limited to this number (optional, default is 10)
   */
-object compounds extends SparkJob with NamedRddSupport with Globals {
+object compounds extends SparkSessionJob with NamedObjectSupport {
 
-  import Common._
+  type JobData = functions.CompoundsFunctions.JobData
+  type JobOutput = collection.Map[String, Any]
 
-  // For backward compatibility, we do not check on version.
-  val simpleChecks:SingleParValidations = Seq(
-    ("query",   (isDefined ,    "query not defined in POST config")),
-    ("query",   (isNotEmpty ,   "query is empty in POST config"))
-  )
+  override def validate(sparkSession: SparkSession,
+                        runtime: JobEnvironment,
+                        config: Config): JobData Or Every[ValidationProblem] = {
 
-  val combinedChecks:CombinedParValidations = Seq()
+    val db = getDB(runtime)
+    val genes = getGenes(runtime)
+    val limit = optParamLimit(config, 10)
+    val version = optParamVersion(config)
+    val isValidVersion = validVersion(config)
+    val compoundQuery = paramCompoundQ(config)
 
-  override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
+    (isValidVersion zip
+      withGood(db, genes, compoundQuery) {
+        JobData(_, _, version, _, limit)
+      }).map(_._2)
 
-    val showHelp = Try(config.getString("help")).toOption.isDefined
-    val testsSingle = runSingleParValidations(simpleChecks, config)
-    val testsCombined = runCombinedParValidations(combinedChecks, config)
-    val allTests = aggregateValidations(testsSingle ++ testsCombined)
-
-    (showHelp, allTests._1) match {
-      case (true, _) => SparkJobInvalid(helpMsg)
-      case (false, true) => SparkJobValid
-      case (false, false) => SparkJobInvalid(allTests._2)
-    }
   }
 
-  override def runJob(sc: SparkContext, config: Config): Any = {
+  override def runJob(sparkSession: SparkSession,
+                      runtime: JobEnvironment,
+                      data: JobData): JobOutput = {
 
-    // API Version, fallback to v1
-    val version = Try(config.getString("version")).getOrElse("v1")
-    // Compound query string, fallback to all compounds (safe in combination with limit)
-    val compoundQuery:String = Try(config.getString("query")).getOrElse(".*")
-    // Limit on number of results, fallback is 10
-    val limit:Int = Try(config.getString("limit").toInt).getOrElse(10)
+    implicit val thisSession = sparkSession
 
-    // Load cached data
-    val db = retrieveDb(sc, this)
-    val genes = retrieveGenes(sc, this).value
+    data.version match {
+      case "v2" =>
+        Map(
+          "info" -> info(data),
+          "header" -> header(data),
+          "data" -> result(data)
+        )
 
-    // Arguments for endpoint function
-    val input = (db, genes)
-    val parameters = (version, compoundQuery, limit)
-
-    version match {
-      case "v2"   =>  Map(
-                          "info"   -> info(input,parameters),
-                          "header" -> header(input, parameters),
-                          "data"   -> result(input, parameters)
-                        )
-      case _   => result(input, parameters)
+      case _ => Map("result" -> result(data))
     }
+
   }
+
 }

@@ -46,6 +46,12 @@ object Common extends Serializable {
       .getOrElse(Bad(One(SingleProblem("Signature query not provided"))))
   }
 
+  def paramCompoundQ(config: Config): String Or One[ValidationProblem] = {
+    Try(config.getString("query"))
+      .map(q => Good(q))
+      .getOrElse(Bad(One(SingleProblem("Parameter compound query not provided"))))
+  }
+
   def paramSorted(config: Config): Boolean Or One[ValidationProblem] = {
     Try(config.getString("sorted").toBoolean)
       .map(q => Good(q))
@@ -68,25 +74,25 @@ object Common extends Serializable {
     Try(config.getString("version")).getOrElse(default)
   }
 
-  def optParamFilterConcentration(config: Config, default: String = ""): String = {
-    Try(config.getString("filter.concentration")).getOrElse(default)
-  }
+    def optParamFilterConcentration(config: Config, default: String = ""): String = {
+      Try(config.getString("filter.concentration")).getOrElse(default)
+    }
 
-  def optParamFilterProtocol(config: Config, default: String = ""): String = {
-    Try(config.getString("filter.protocol")).getOrElse(default)
-  }
+    def optParamFilterProtocol(config: Config, default: String = ""): String = {
+      Try(config.getString("filter.protocol")).getOrElse(default)
+    }
 
-  def optParamFilterType(config: Config, default: String = ""): String = {
-    Try(config.getString("filter.type")).getOrElse(default)
-  }
+    def optParamFilterType(config: Config, default: String = ""): String = {
+      Try(config.getString("filter.type")).getOrElse(default)
+    }
 
-  def optParamFilters(config: Config): Map[String, String] = {
-    Map(
-      "concentration" -> optParamFilterConcentration(config),
-      "type" -> optParamFilterType(config),
-      "protocol" -> optParamFilterProtocol(config)
-    )
-  }
+    def optParamFilters(config: Config): Map[String, String] = {
+      Map(
+        "concentration" -> optParamFilterConcentration(config),
+        "type" -> optParamFilterType(config),
+        "protocol" -> optParamFilterProtocol(config)
+      )
+    }
 
   def validVersion(config: Config): Boolean Or One[ValidationProblem] = {
     if (VERSIONS contains optParamVersion(config)) Good(true)
