@@ -47,14 +47,13 @@ object CompoundsFunctions extends SessionFunctions {
     }
 
     val resultRDD =
-      db.filter { sample =>
+      db.rdd.filter { sample =>
           (sample.compoundAnnotations.compound.jnjs.exists(isMatch(_, compoundQuery))
           || sample.compoundAnnotations.compound.name.exists(isMatch(_, compoundQuery)))
         }
         .map { sample =>
           (sample.compoundAnnotations.compound.getJnjs, sample.compoundAnnotations.compound.getName)
         }
-        .rdd
         .countByValue()
         .keys
         .toArray
