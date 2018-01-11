@@ -1,11 +1,26 @@
 package com.dataintuitive.luciusapi
 
+// Functions implementation and common code
 import functions.CheckSignatureFunctions._
+import Common._
 
-import com.typesafe.config.Config
-import org.apache.spark.SparkContext
+// LuciusCore
+import com.dataintuitive.luciuscore.Model.DbRow
+import com.dataintuitive.luciuscore.GeneModel._
+
+// Jobserver
+import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
 import spark.jobserver._
+
+// Scala, Scalactic and Typesafe
 import scala.util.Try
+import org.scalactic._
+import Accumulation._
+import com.typesafe.config.Config
+
+// Spark
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Dataset
 
 /**
   * Returns annotations about genes (exists in l1000, symbol)
@@ -14,49 +29,38 @@ import scala.util.Try
   *
   * - __`query`__: a gene signature where genes can be in any format symbol, ensembl, probeset, entrez (mandatory)
   */
-object checkSignature extends SparkJob with NamedRddSupport with Globals {
+object checkSignature extends SparkSessionJob with NamedObjectSupport {
 
-  import Common._
+  type JobData = functions.CheckSignatureFunctions.JobData
+  type JobOutput = collection.Map[String, Any]
 
-  val simpleChecks:SingleParValidations = Seq(
-    ("query",   (isDefined ,    "query not defined in POST config")),
-    ("query",   (isNotEmpty ,   "query is empty in POST config"))
-  )
+  override def validate(sparkSession: SparkSession,
+                        runtime: JobEnvironment,
+                        config: Config): JobData Or Every[ValidationProblem] = {
 
-  val combinedChecks:CombinedParValidations = Seq()
+    val db = getDB(runtime)
+    val genes = getGenes(runtime)
+    val signature = optParamSignature(config)
+    val version = optParamVersion(config)
+    val isValidVersion = validVersion(config)
 
-  override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
+    (isValidVersion zip
+      withGood(db, genes) {
+        JobData(_, _, version, signature)
+      }).map(_._2)
 
-    val showHelp = Try(config.getString("help")).toOption.isDefined
-    val testsSingle = runSingleParValidations(simpleChecks, config)
-    val testsCombined = runCombinedParValidations(combinedChecks, config)
-    val allTests = aggregateValidations(testsSingle ++ testsCombined)
-
-    (showHelp, allTests._1) match {
-      case (true, _) => SparkJobInvalid(help)
-      case (false, true) => SparkJobValid
-      case (false, false) => SparkJobInvalid(allTests._2)
-    }
   }
 
-  override def runJob(sc: SparkContext, config: Config): Any = {
+  override def runJob(sparkSession: SparkSession,
+                      runtime: JobEnvironment,
+                      data: JobData): JobOutput = {
 
-    // Compound query string
-    val rawSignature:String = Try(config.getString("query")).getOrElse("")
-    val signatureQuery = rawSignature.split(" ").toList
-
-    // Load cached data
-    val db = retrieveDb(sc, this)
-    val genes = retrieveGenes(sc, this).value
-
-    // Arguments for endpoint functions
-    val input = (db, genes)
-    val parameters = signatureQuery
+    implicit val thisSession = sparkSession
 
     Map(
-      "info"   -> info(input, parameters),
-      "header" -> header(input, parameters),
-      "data"   -> result(input, parameters)
+      "info" -> info(data),
+      "header" -> header(data),
+      "data" -> result(data)
     )
 
   }
