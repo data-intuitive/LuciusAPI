@@ -1,81 +1,73 @@
 package com.dataintuitive.luciusapi
 
+// Functions implementation and common code
 import com.dataintuitive.luciusapi.functions.TopTableFunctions._
-import com.typesafe.config.Config
-import org.apache.spark.SparkContext
+import Common._
+
+// LuciusCore
+import com.dataintuitive.luciuscore.Model.DbRow
+import com.dataintuitive.luciuscore.GeneModel._
+
+// Jobserver
+import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
 import spark.jobserver._
 
+// Scala, Scalactic and Typesafe
 import scala.util.Try
+import org.scalactic._
+import Accumulation._
+import com.typesafe.config.Config
 
-object topTable extends SparkJob with NamedRddSupport with Globals {
+// Spark
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Dataset
 
-  import Common._
+object topTable extends SparkSessionJob with NamedObjectSupport {
 
-  // TODO: check if platewellid endpoint is used, otherwise just make query mandatory for simplicity
-  val simpleChecks:SingleParValidations = Seq()
+  type JobData = functions.TopTableFunctions.JobData
+  type JobOutput = collection.Map[String, Any]
 
-  val combinedChecks:CombinedParValidations = Seq()
+  override def validate(sparkSession: SparkSession,
+                        runtime: JobEnvironment,
+                        config: Config): JobData Or Every[ValidationProblem] = {
 
-  override def validate(sc: SparkContext, config: Config): SparkJobValidation = {
+    val db = getDB(runtime)
+    val genes = getGenes(runtime)
+    val targets = paramTargets(config)
+    val limit = optParamLimit(config)
+    val version = optParamVersion(config)
+    val isValidVersion = validVersion(config)
 
-    val showHelp = Try(config.getString("help")).toOption.isDefined
+    val signature = optParamSignature(config)
+    val features = optParamFeatures(config)
+    val filters = optParamFilters(config)
 
-    showHelp match {
-      case true => SparkJobInvalid(helpMsg)
-      case false => SparkJobValid
-    }
+    val head = optParamHead(config)
+    val tail = optParamTail(config)
+    val isValidHeadTail = validHeadTail(config)
+
+    (isValidVersion zip isValidHeadTail zip
+      withGood(db, genes) {
+        JobData(_, _, version, head, tail, signature, features, filters)
+      }).map(_._2)
 
   }
 
-  override def runJob(sc: SparkContext, config: Config): Any = {
+  override def runJob(sparkSession: SparkSession,
+                      runtime: JobEnvironment,
+                      data: JobData): JobOutput = {
 
-    // API Version
-    val version = Try(config.getString("version")).getOrElse("v1")
+    implicit val thisSession = sparkSession
 
-    // Gene query string
-    val rawSignature:String = Try(config.getString("query")).getOrElse(".*")
-    val signatureSpecified = !(rawSignature== ".*")
-    val signatureQuery = rawSignature.split(" ").toList
+    data.version match {
+      case "v2" =>
+        Map(
+          "info" -> info(data),
+          "header" -> header(data),
+          "data" -> result(data)
+        )
 
-    // Put a limit to the number of results, only if no pwids specified
-    val head:Int = Try(config.getString("head").toInt).getOrElse(0)
-    val tail:Int = Try(config.getString("tail").toInt).getOrElse(0)
-
-    // features to return: list of features
-    val featuresString:String = Try(config.getString("features")).getOrElse(".*")
-    val featuresSpecified = !(featuresString == ".*")
-    val featuresQuery = featuresString.split(" ").toList
-
-    // Filters
-    val filterConcentrationString:String = Try(config.getString("filter.concentration")).getOrElse("")
-    val filterConcentrationQuery = filterConcentrationString
-    val filterTypeString:String = Try(config.getString("filter.type")).getOrElse("")
-    val filterTypeQuery = filterTypeString
-    val filterProtocolString:String = Try(config.getString("filter.protocol")).getOrElse("")
-    val filterProtocolQuery = filterProtocolString
-
-    val filters = Map(
-        "concentration" -> filterConcentrationQuery,
-        "type" -> filterTypeQuery,
-        "protocol" -> filterProtocolQuery
-    )
-
-    // Load cached data
-    val db = retrieveDb(sc, this)
-    val genes = retrieveGenes(sc, this).value
-
-    // Arguments for endpoint function
-    val input = (db, genes)
-    val parameters = (version, head, tail, signatureQuery, featuresQuery, filters)
-
-    version match {
-      case "v2" =>  Map(
-                      "info"   -> info(input, parameters),
-                      "header" -> header(input, parameters),
-                      "data"   -> result(input, parameters)
-                    )
-
-      case _    => result(input, parameters)
+      case _ => Map("result" -> result(data))
     }
 
   }

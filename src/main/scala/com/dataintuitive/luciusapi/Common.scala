@@ -86,6 +86,19 @@ object Common extends Serializable {
     Try(config.getString("binsX").toInt).getOrElse(default)
   }
 
+  def optParamHead(config: Config, default: Int = 0): Int = {
+    Try(config.getString("head").toInt).getOrElse(default)
+  }
+
+  def optParamTail(config: Config, default: Int = 0): Int = {
+    Try(config.getString("tail").toInt).getOrElse(default)
+  }
+
+  def validHeadTail(config: Config): Boolean Or One[ValidationProblem] = {
+    if (optParamHead(config) > 0 || optParamTail(config) > 0) Good(true)
+    else Bad(One(SingleProblem("Either head or tail count needs to be provided")))
+  }
+
   def optParamBins(config: Config, default: Int = 15): Int = {
     Try(config.getString("binsX").toInt).getOrElse(default)
   }

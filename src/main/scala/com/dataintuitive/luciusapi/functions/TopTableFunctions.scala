@@ -6,14 +6,23 @@ import com.dataintuitive.luciuscore.SignatureModel.SymbolSignature
 import com.dataintuitive.luciuscore.TransformationFunctions._
 import com.dataintuitive.luciuscore.ZhangScoreFunctions._
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 
 import scala.collection.immutable.Map
 
-object TopTableFunctions extends Functions {
+object TopTableFunctions extends SessionFunctions {
 
-  type Input = (RDD[DbRow], Genes)
-  type Parameters = (String, Int, Int, List[String], List[String], Map[String, String])
-  type Output = Array[Map[String, Any]]
+  case class JobData(db: Dataset[DbRow],
+                     genes: Genes,
+                     version: String,
+                     head: Int,
+                     tail: Int,
+                     signatureQuery: List[String],
+                     featuresQuery: List[String],
+                     filters: Map[String, String])
+
+  type JobOutput = Array[Map[String, Any]]
 
   val helpMsg =
     s"""
@@ -22,7 +31,7 @@ object TopTableFunctions extends Functions {
   type ScoredDbRow = (Double, DbRow)
 
   val ZHANG = Set("zhang", "similarity", "Zhang", "Similarity")
-  val PWID =  Set("id", "pwid")
+  val PWID = Set("id", "pwid")
   val JNJS = Set("jnjs", "Jnjs")
   val JNJB = Set("jnjb", "Jnjb")
   val SMILES = Set("Smiles", "smiles", "SMILES")
@@ -37,76 +46,83 @@ object TopTableFunctions extends Functions {
   val YEAR = Set("year", "Year")
   val TARGETS = Set("targets", "knownTargets", "Targets")
 
-  def featureByLens[T](lens:ScoredDbRow => T)(r:ScoredDbRow) = lens(r)
+  def featureByLens[T](lens: ScoredDbRow => T)(r: ScoredDbRow) = lens(r)
 
   val extractZhang = featureByLens(_._1) _
-  val extractPwid  = featureByLens(_._2.pwid.getOrElse("No PWID")) _
+  val extractPwid = featureByLens(_._2.pwid.getOrElse("No PWID")) _
 
   val extractJnjs = featureByLens(_._2.compoundAnnotations.compound.jnjs.getOrElse("No Jnjs")) _
   val extractJnjb = featureByLens(_._2.compoundAnnotations.compound.jnjb.getOrElse("No Jnjb")) _
   val extractSmiles = featureByLens(_._2.compoundAnnotations.compound.smiles.getOrElse("No Smiles")) _
-  val extractInchikey = featureByLens(_._2.compoundAnnotations.compound.inchikey.getOrElse("No Inchikey")) _
-  val extractCompoundname = featureByLens(_._2.compoundAnnotations.compound.name.getOrElse("No Compound Name")) _
-  val extractType = featureByLens(_._2.compoundAnnotations.compound.ctype.getOrElse("No Compound Type")) _
+  val extractInchikey = featureByLens(
+    _._2.compoundAnnotations.compound.inchikey.getOrElse("No Inchikey")) _
+  val extractCompoundname = featureByLens(
+    _._2.compoundAnnotations.compound.name.getOrElse("No Compound Name")) _
+  val extractType = featureByLens(
+    _._2.compoundAnnotations.compound.ctype.getOrElse("No Compound Type")) _
 
   val extractBatch = featureByLens(_._2.sampleAnnotations.sample.batch.getOrElse("No Batch id")) _
   val extractPlateid = featureByLens(_._2.sampleAnnotations.sample.plateid.getOrElse("No Plate id")) _
   val extractWell = featureByLens(_._2.sampleAnnotations.sample.well.getOrElse("No Well id")) _
-  val extractProtocolname = featureByLens(_._2.sampleAnnotations.sample.protocolname.getOrElse("No Protocol")) _
-  val extractConcentration = featureByLens(_._2.sampleAnnotations.sample.concentration.getOrElse("No Concentration")) _
+  val extractProtocolname = featureByLens(
+    _._2.sampleAnnotations.sample.protocolname.getOrElse("No Protocol")) _
+  val extractConcentration = featureByLens(
+    _._2.sampleAnnotations.sample.concentration.getOrElse("No Concentration")) _
   val extractYear = featureByLens(_._2.sampleAnnotations.sample.year.getOrElse("No Year")) _
 
   val extractTargets = featureByLens(_._2.compoundAnnotations.getKnownTargets.toList) _
 
-  def extractFeatures(r:ScoredDbRow, features:List[String]) = features.map{ _ match {
-    case x if ZHANG contains x => extractZhang(r)
-    case x if PWID contains x => extractPwid(r)
-    case x if JNJS contains x => extractJnjs(r)
-    case x if JNJB contains x => extractJnjb(r)
-    case x if SMILES contains x => extractSmiles(r)
-    case x if INCHIKEY contains x => extractInchikey(r)
-    case x if COMPOUNDNAME contains x => extractCompoundname(r)
-    case x if TYPE contains x => extractType(r)
-    case x if BATCH contains x => extractBatch(r)
-    case x if PLATEID contains x => extractPlateid(r)
-    case x if WELL contains x => extractWell(r)
-    case x if PROTOCOLNAME contains x => extractProtocolname(r)
-    case x if CONCENTRATION contains x => extractConcentration(r)
-    case x if YEAR contains x => extractYear(r)
-    case x if TARGETS contains x => extractTargets(r)
-    case _ => "Feature not found"
-  }}
+  def extractFeatures(r: ScoredDbRow, features: List[String]) = features.map {
+    _ match {
+      case x if ZHANG contains x         => extractZhang(r)
+      case x if PWID contains x          => extractPwid(r)
+      case x if JNJS contains x          => extractJnjs(r)
+      case x if JNJB contains x          => extractJnjb(r)
+      case x if SMILES contains x        => extractSmiles(r)
+      case x if INCHIKEY contains x      => extractInchikey(r)
+      case x if COMPOUNDNAME contains x  => extractCompoundname(r)
+      case x if TYPE contains x          => extractType(r)
+      case x if BATCH contains x         => extractBatch(r)
+      case x if PLATEID contains x       => extractPlateid(r)
+      case x if WELL contains x          => extractWell(r)
+      case x if PROTOCOLNAME contains x  => extractProtocolname(r)
+      case x if CONCENTRATION contains x => extractConcentration(r)
+      case x if YEAR contains x          => extractYear(r)
+      case x if TARGETS contains x       => extractTargets(r)
+      case _                             => "Feature not found"
+    }
+  }
 
+  def info(data: JobData) = s"Top Table wrt Zhang"
 
-  def info(data:Input, par:Parameters) = s"Top Table wrt Zhang"
+  def header(data: JobData) = s"Selected features: ${data.featuresQuery.toString}"
 
-  def header(data:Input, par:Parameters) = s"Selected features: ${par._5.toString}"
+  def result(data: JobData)(implicit sparkSession: SparkSession) = {
 
-  def result(data:Input, par:Parameters) = {
-
-    val (db, genes) = data
-    val (version, head, tail, signatureQuery, featuresQuery, filters) = par
+    val JobData(db, genes, version, head, tail, signatureQuery, featuresQuery, filters) = data
 
     val signatureSpecified = !(signatureQuery.headOption.getOrElse(".*") == ".*")
     val featuresSpecified = !(featuresQuery.headOption.getOrElse(".*") == ".*")
 
     // Filters
     val filterConcentrationSpecified = filters.getOrElse("concentration", "") != ""
-    def concentrationFilter(sample:DbRow):Boolean =
+    def concentrationFilter(sample: DbRow): Boolean =
       if (filterConcentrationSpecified)
-        sample.sampleAnnotations.sample.concentration.getOrElse("NA").matches(filters("concentration"))
+        sample.sampleAnnotations.sample.concentration
+          .getOrElse("NA")
+          .matches(filters("concentration"))
       else
         true
 
     val filterProtocolSpecified = filters.getOrElse("protocol", "") != ""
-    def protocolFilter(sample:DbRow):Boolean =
+    def protocolFilter(sample: DbRow): Boolean =
       if (filterProtocolSpecified)
         sample.sampleAnnotations.sample.protocolname.getOrElse("NA").matches(filters("protocol"))
       else
         true
 
     val filterTypeSpecified = filters.getOrElse("type", "") != ""
-    def typeFilter(sample:DbRow):Boolean =
+    def typeFilter(sample: DbRow): Boolean =
       if (filterTypeSpecified)
         sample.compoundAnnotations.compound.ctype.getOrElse("NA").matches(filters("type"))
       else
@@ -127,30 +143,33 @@ object TopTableFunctions extends Functions {
 
     // Calculate Zhang score for all entries that contain a rank vector
     // This should be used in a flatMap
-    def updateZhang(x:DbRow, query:Array[Double]):Option[(Double, DbRow)] = {
+    def updateZhang(x: DbRow, query: Array[Double]): Option[(Double, DbRow)] = {
       x.sampleAnnotations.r match {
         case Some(r) => Some((connectionScore(r, query), x))
-        case _ => None
+        case _       => None
       }
     }
 
     // Add Zhang score if signature is present
     // Filter as soon as possible
-    val zhangAdded:RDD[(Double, DbRow)] =
-      db
+    val zhangAdded: RDD[(Double, DbRow)] =
+      db.rdd
         .filter(concentrationFilter)
         .filter(protocolFilter)
         .filter(typeFilter)
-        .flatMap{updateZhang(_, query)}
+        .flatMap { updateZhang(_, query) }
 
     val topN =
       if (head > 0) {
-        implicit val descendingOrdering = Ordering.by{x:(Double,DbRow) => -x._1}
+        implicit val descendingOrdering = Ordering.by { x: (Double, DbRow) =>
+          -x._1
+        }
         zhangAdded
           .takeOrdered(head)
-      }
-      else {
-        implicit val ascendingOrdering = Ordering.by{x:(Double,DbRow) => x._1}
+      } else {
+        implicit val ascendingOrdering = Ordering.by { x: (Double, DbRow) =>
+          x._1
+        }
         zhangAdded
           .takeOrdered(tail)
       }
@@ -159,25 +178,38 @@ object TopTableFunctions extends Functions {
     // TODO: Add target information and make sure it gets parsed correctly!
     val features = {
       if (featuresSpecified) featuresQuery
-      else List("zhang","id","jnjs", "jnjb", "smiles", "inchikey",
-        "compoundname", "Type", "targets", "batch",
-        "plateid", "well", "protocolname", "concentration", "year")
+      else
+        List("zhang",
+             "id",
+             "jnjs",
+             "jnjb",
+             "smiles",
+             "inchikey",
+             "compoundname",
+             "Type",
+             "targets",
+             "batch",
+             "plateid",
+             "well",
+             "protocolname",
+             "concentration",
+             "year")
     }
 
     val result =
       if (head > 0)
         topN
-          .sortBy{case (z, x) => -z}
+          .sortBy { case (z, x) => -z }
           .map(entry => extractFeatures(entry, features))
       else
         topN
-          .sortBy{case (z, x) => z}
+          .sortBy { case (z, x) => z }
           .map(entry => extractFeatures(entry, features))
 
     result.map(_.zip(features).map(_.swap).toMap)
 
   }
 
-  def topTable = result _
+//   def topTable = result _
 
 }
