@@ -1,4 +1,4 @@
-package com.dataintuitive.luciusapi
+package com.dataintuitive.luciusapi.deprecated
 
 import com.dataintuitive.luciuscore.GeneModel.{GeneAnnotation, Genes}
 import com.dataintuitive.luciuscore.Model._

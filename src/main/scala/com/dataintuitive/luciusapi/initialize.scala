@@ -30,7 +30,7 @@ import spark.jobserver._
   * - For Jobserver we use NamedObject support for both the RDD and the dictionary of genes.
   * - For local, we use PersistentRDDs in combination with a new loading of the genes database at every call.
   */
-object initialize extends SparkSessionJob with Globals with NamedObjectSupport {
+object initialize extends SparkSessionJob with NamedObjectSupport {
 
   case class JobData(db: String,
                      geneAnnotations: String,

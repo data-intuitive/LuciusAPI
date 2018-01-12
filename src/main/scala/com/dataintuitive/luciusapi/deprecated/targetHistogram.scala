@@ -1,4 +1,4 @@
-package com.dataintuitive.luciusapi
+package com.dataintuitive.luciusapi.deprecated
 
 import com.dataintuitive.luciuscore.Model._
 import com.dataintuitive.luciuscore.SignatureModel.SymbolSignature
@@ -17,7 +17,7 @@ import scala.util.Try
   */
 object targetHistogram extends SparkJob with NamedRddSupport with Globals {
 
-  import Common._
+  import OldCommon._
 
   val helpMsg =
     s"""

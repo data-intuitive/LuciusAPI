@@ -1,4 +1,4 @@
-package com.dataintuitive.luciusapi
+package com.dataintuitive.luciusapi.deprecated
 
 import com.typesafe.config.Config
 import org.apache.spark.SparkContext
@@ -8,7 +8,7 @@ import scala.util.Try
 
 object targetFrequency extends SparkJob with NamedRddSupport with Globals {
 
-  import Common._
+  import OldCommon._
 
   val simpleChecks:SingleParValidations = Seq()
 

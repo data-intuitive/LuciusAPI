@@ -1,4 +1,4 @@
-package com.dataintuitive.luciusapi
+package com.dataintuitive.luciusapi.deprecated
 
 import com.dataintuitive.luciusapi.functions.BinnedZhangZoomFunctions._
 import com.typesafe.config.Config
@@ -9,7 +9,7 @@ import scala.util.Try
 
 object binnedZhangZoom extends SparkJob with NamedRddSupport with Globals {
 
-  import Common._
+  import OldCommon._
 
   val simpleChecks:SingleParValidations = Seq(
     ("query",   (isDefined ,    "query not defined in POST config")),

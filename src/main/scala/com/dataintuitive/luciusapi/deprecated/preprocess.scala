@@ -1,4 +1,4 @@
-package com.dataintuitive.luciusapi
+package com.dataintuitive.luciusapi.deprecated
 
 import com.dataintuitive.luciuscore.io._
 import com.dataintuitive.luciuscore.GeneModel._
@@ -17,7 +17,7 @@ import scala.util.Try
   */
 object preprocess extends SparkJob {
 
-  import Common._
+  import OldCommon._
 
   /**
     * Paramater validation: for v2, compoundAnnotations have to be provided.

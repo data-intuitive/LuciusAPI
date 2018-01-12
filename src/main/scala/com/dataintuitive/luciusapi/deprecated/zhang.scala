@@ -1,6 +1,6 @@
-package com.dataintuitive.luciusapi
+package com.dataintuitive.luciusapi.deprecated
 
-import functions.ZhangFunctions._
+import com.dataintuitive.luciusapi.functions.ZhangFunctions._
 
 import com.typesafe.config.Config
 import org.apache.spark._
@@ -22,7 +22,7 @@ import spark.jobserver.{NamedRddSupport, SparkJob, SparkJobInvalid, SparkJobVali
   */
 object zhang extends SparkJob with NamedRddSupport with Globals {
 
-  import Common._
+  import OldCommon._
 
   val simpleChecks:SingleParValidations = Seq(
     ("query",   (isDefined ,    "query not defined in POST config")),
