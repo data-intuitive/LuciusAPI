@@ -16,7 +16,7 @@ object TargetToCompoundsFunctions extends SessionFunctions {
                      targets: List[String], 
                      limit: Int)
 
-  type JobOutput = Array[Map[String, String]]
+  type JobOutput = Array[Map[String, Any]]
 
 
   val PWID =  Set("id", "pwid")
@@ -103,7 +103,6 @@ object TargetToCompoundsFunctions extends SessionFunctions {
 
     result
         .map(entry => extractFeatures(entry, features) )
-        .map(_.map(_.toString))
         .map(_.zip(features).map(_.swap).toMap)
 
   }
