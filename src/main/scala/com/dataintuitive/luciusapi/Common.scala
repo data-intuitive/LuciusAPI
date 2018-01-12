@@ -58,6 +58,12 @@ object Common extends Serializable {
       .getOrElse(Bad(One(SingleProblem("Parameter target query not provided"))))
   }
 
+  def paramTargets(config: Config): List[String] Or One[ValidationProblem] = {
+    Try(config.getString("query").split(" ").toList)
+      .map(q => Good(q))
+      .getOrElse(Bad(One(SingleProblem("Parameter targets query not provided"))))
+  }
+
   def paramCompounds(config: Config): List[String] Or One[ValidationProblem] = {
     Try(config.getString("query").split(" ").toList)
       .map(q => Good(q))

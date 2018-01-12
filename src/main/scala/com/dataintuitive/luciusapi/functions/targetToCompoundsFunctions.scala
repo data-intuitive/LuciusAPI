@@ -4,14 +4,19 @@ import com.dataintuitive.luciuscore.GeneModel.Genes
 import com.dataintuitive.luciuscore.Model.CompoundAnnotations
 import com.dataintuitive.luciuscore.Model.DbRow
 import org.apache.spark.rdd.RDD
-
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.SparkSession
 import scala.collection.immutable.Map
 
-object TargetToCompoundsFunctions extends Functions {
+object TargetToCompoundsFunctions extends SessionFunctions {
 
-  type Input = (RDD[DbRow], Genes)
-  type Parameters = (String, List[String], Int)
-  type Output = Array[Map[String, Any]]
+  case class JobData(db: Dataset[DbRow],
+                     genes: Genes,
+                     version: String,
+                     targets: List[String], 
+                     limit: Int)
+
+  type JobOutput = Array[Map[String, String]]
 
 
   val PWID =  Set("id", "pwid")
@@ -61,14 +66,13 @@ object TargetToCompoundsFunctions extends Functions {
         | - version: v1, v2 or t1 (optional, default is `v1`)
      """.stripMargin
 
-  def info(data:Input, par:Parameters) = s"Result for target query ${par._2}"
+  def info(data:JobData) = s"Result for target query ${data.targets}"
 
-  def header(data:Input, par:Parameters) = "All relevant data"
+  def header(data:JobData) = "All relevant data"
 
-  def result(data:Input, par:Parameters) = {
+  def result(data:JobData)(implicit sparkSession: SparkSession) = {
 
-    val (db, genes) = data
-    val (version, targetQuery, limit) = par
+      val JobData(db, genes, version, targetQuery, limit) = data
 
     // I could distinguish on version as well, but this makes more sense
     // This way, the same function can be reused for v1 and v2
@@ -80,7 +84,7 @@ object TargetToCompoundsFunctions extends Functions {
     val features = List("jnjs", "jnjb", "smiles", "inchikey", "compoundname", "Type", "targets")
 
     val resultRDD =
-      db
+      db.rdd
         .map(_.compoundAnnotations)
         .filter{compoundAnnotations =>
           compoundAnnotations.knownTargets.map(isMatch(_, targetQuery)).getOrElse(false)  //.compound.jnjs.exists(isMatch(_, compoundQuery))
@@ -99,10 +103,11 @@ object TargetToCompoundsFunctions extends Functions {
 
     result
         .map(entry => extractFeatures(entry, features) )
+        .map(_.map(_.toString))
         .map(_.zip(features).map(_.swap).toMap)
 
   }
 
-  def targetToCompounds = result _
+//   def targetToCompounds = result _
 
 }
