@@ -5,6 +5,8 @@ import com.dataintuitive.luciuscore.Model.DbRow
 import com.dataintuitive.luciuscore.io.GenesIO
 import com.typesafe.config.Config
 
+import Common.ParamHandlers._
+
 import com.typesafe.config.Config
 import org.apache.spark.sql.SparkSession
 import spark.jobserver.SparkSessionJob
@@ -18,8 +20,6 @@ import Accumulation._
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.storage.StorageLevel._
 import spark.jobserver._
-// import spark.jobserver.NamedBroadcast
-// import spark.jobserver.BroadcastPersister
 
 /**
   * Initialize the API by caching the database with sample-compound information

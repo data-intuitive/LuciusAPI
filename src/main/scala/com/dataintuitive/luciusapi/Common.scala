@@ -36,162 +36,184 @@ object Common extends Serializable {
 
   case class CachedData(db: Dataset[DbRow], genes: Genes)
 
-  def paramSignature(config: Config): List[String] Or One[ValidationProblem] = {
-    Try(config.getString("query").split(" ").toList)
-      .map(q => Good(q))
-      .getOrElse(Bad(One(SingleProblem("Signature query not provided"))))
+  object ParamHandlers {
+
+    def paramSignature(config: Config): List[String] Or One[ValidationProblem] = {
+      Try(config.getString("query").split(" ").toList)
+        .map(q => Good(q))
+        .getOrElse(Bad(One(SingleProblem("Signature query not provided"))))
+    }
+
+    def paramCompoundQ(config: Config): String Or One[ValidationProblem] = {
+      Try(config.getString("query"))
+        .map(q => Good(q))
+        .getOrElse(Bad(One(SingleProblem("Parameter compound query not provided"))))
+    }
+
+    def paramTargetQ(config: Config): String Or One[ValidationProblem] = {
+      Try(config.getString("query"))
+        .map(q => Good(q))
+        .getOrElse(Bad(One(SingleProblem("Parameter target query not provided"))))
+    }
+
+    def paramTargets(config: Config): List[String] Or One[ValidationProblem] = {
+      Try(config.getString("query").split(" ").toList)
+        .map(q => Good(q))
+        .getOrElse(Bad(One(SingleProblem("Parameter targets query not provided"))))
+    }
+
+    def paramCompounds(config: Config): List[String] Or One[ValidationProblem] = {
+      Try(config.getString("query").split(" ").toList)
+        .map(q => Good(q))
+        .getOrElse(Bad(One(SingleProblem("Parameter compounds not provided"))))
+    }
+
+    def paramSamples(config: Config): List[String] Or One[ValidationProblem] = {
+      Try(config.getString("samples").split(" ").toList)
+        .map(q => Good(q))
+        .getOrElse(Bad(One(SingleProblem("Parameter samples not provided"))))
+    }
+
+    def paramSorted(config: Config): Boolean Or One[ValidationProblem] = {
+      Try(config.getString("sorted").toBoolean)
+        .map(q => Good(q))
+        .getOrElse(Bad(One(SingleProblem("Parameter sorted not provided or not boolean"))))
+    }
+
+    def optParamBinsX(config: Config, default: Int = 20): Int = {
+      Try(config.getString("binsX").toInt).getOrElse(default)
+    }
+
+    def optParamHead(config: Config, default: Int = 0): Int = {
+      Try(config.getString("head").toInt).getOrElse(default)
+    }
+
+    def optParamTail(config: Config, default: Int = 0): Int = {
+      Try(config.getString("tail").toInt).getOrElse(default)
+    }
+
+    def validHeadTail(config: Config): Boolean Or One[ValidationProblem] = {
+      if (optParamHead(config) > 0 || optParamTail(config) > 0) Good(true)
+      else Bad(One(SingleProblem("Either head or tail count needs to be provided")))
+    }
+
+    def optParamBins(config: Config, default: Int = 15): Int = {
+      Try(config.getString("binsX").toInt).getOrElse(default)
+    }
+
+    def optParamBinsY(config: Config, default: Int = 20): Int = {
+      Try(config.getString("binsY").toInt).getOrElse(default)
+    }
+
+    def optParamSignature(config: Config, default: List[String] = List(".*")): List[String] = {
+      Try(config.getString("query").split(" ").toList).getOrElse(default)
+    }
+
+    def optParamVersion(config: Config, default: String = "v2"): String = {
+      Try(config.getString("version")).getOrElse(default)
+    }
+
+    def optParamFilterConcentration(config: Config, default: String = ""): String = {
+      Try(config.getString("filter.concentration")).getOrElse(default)
+    }
+
+    def optParamFilterProtocol(config: Config, default: String = ""): String = {
+      Try(config.getString("filter.protocol")).getOrElse(default)
+    }
+
+    def optParamFilterType(config: Config, default: String = ""): String = {
+      Try(config.getString("filter.type")).getOrElse(default)
+    }
+
+    def optParamFilters(config: Config): Map[String, String] = {
+      Map(
+        "concentration" -> optParamFilterConcentration(config),
+        "type" -> optParamFilterType(config),
+        "protocol" -> optParamFilterProtocol(config)
+      )
+    }
+
+    def validVersion(config: Config): Boolean Or One[ValidationProblem] = {
+      if (VERSIONS contains optParamVersion(config)) Good(true)
+      else Bad(One(SingleProblem("Not a valid version identifier")))
+    }
+
+    def optParamPwids(config: Config, default: List[String] = List(".*")): List[String] = {
+      Try(config.getString("pwids").split(" ").toList).getOrElse(default)
+    }
+
+    def optParamLimit(config: Config, default: Int = 10): Int = {
+      Try(config.getString("limit").toInt).getOrElse(default)
+    }
+
+    def optParamFeatures(config: Config, default: List[String] = List(".*")): List[String] = {
+      Try(config.getString("features").toString.split(" ").toList).getOrElse(default)
+    }
+
+    def getDB(runtime: JobEnvironment): Dataset[DbRow] Or One[ValidationProblem] = {
+      Try {
+        val NamedDataSet(db, _, _) = runtime.namedObjects.get[NamedDataSet[DbRow]]("db").get
+        db
+      }.map(db => Good(db))
+        .getOrElse(Bad(One(SingleProblem("Cached DB not available"))))
+    }
+
+    def getGenes(runtime: JobEnvironment): Genes Or One[ValidationProblem] = {
+      Try {
+        val NamedBroadcast(genes) = runtime.namedObjects.get[NamedBroadcast[Genes]]("genes").get
+        genes.value
+      }.map(genes => Good(genes))
+        .getOrElse(Bad(One(SingleProblem("Broadcast genes not available"))))
+    }
+
+    def paramDb(config: Config): String Or One[ValidationProblem] = {
+      Try(config.getString("db"))
+        .map(db => Good(db))
+        .getOrElse(Bad(One(SingleProblem("DB config parameter not provided"))))
+    }
+
+    def paramGenes(config: Config): String Or One[ValidationProblem] = {
+      Try(config.getString("geneAnnotations"))
+        .map(ga => Good(ga))
+        .getOrElse(Bad(One(SingleProblem("geneAnnotations config parameter not provided"))))
+    }
+
+    def paramPartitions(config: Config): Int = {
+      // Optional parameter, default is 24
+      Try(config.getString("partitions").toInt)
+        .getOrElse(24)
+    }
+
+    def paramStorageLevel(config: Config): StorageLevel = {
+      // Optional parameter, default is 24
+      Try(config.getString("storageLevel")).toOption
+        .flatMap(_ match {
+          case "MEMORY_ONLY"   => Some(StorageLevel.MEMORY_ONLY)
+          case "MEMORY_ONLY_2" => Some(StorageLevel.MEMORY_ONLY_2)
+          case _               => None
+        })
+        .getOrElse(StorageLevel.MEMORY_ONLY)
+    }
+
   }
 
-  def paramCompoundQ(config: Config): String Or One[ValidationProblem] = {
-    Try(config.getString("query"))
-      .map(q => Good(q))
-      .getOrElse(Bad(One(SingleProblem("Parameter compound query not provided"))))
+  object Variables {
+    val ZHANG = Set("zhang", "similarity", "Zhang", "Similarity")
+    val PWID = Set("id", "pwid")
+    val JNJS = Set("jnjs", "Jnjs")
+    val JNJB = Set("jnjb", "Jnjb")
+    val SMILES = Set("Smiles", "smiles", "SMILES")
+    val INCHIKEY = Set("inchikey", "Inchikey")
+    val COMPOUNDNAME = Set("compoundname", "CompoundName", "Compoundname", "name", "Name")
+    val TYPE = Set("Type", "type")
+    val BATCH = Set("batch", "Batch")
+    val PLATEID = Set("plateid", "PlateId")
+    val WELL = Set("well", "Well")
+    val PROTOCOLNAME = Set("protocolname", "cellline", "CellLine", "ProtocolName")
+    val CONCENTRATION = Set("concentration", "Concentration")
+    val YEAR = Set("year", "Year")
+    val TARGETS = Set("targets", "knownTargets", "Targets")
+    val SIGNIFICANTGENES = Set("significantGenes")
+
   }
-
-  def paramTargetQ(config: Config): String Or One[ValidationProblem] = {
-    Try(config.getString("query"))
-      .map(q => Good(q))
-      .getOrElse(Bad(One(SingleProblem("Parameter target query not provided"))))
-  }
-
-  def paramTargets(config: Config): List[String] Or One[ValidationProblem] = {
-    Try(config.getString("query").split(" ").toList)
-      .map(q => Good(q))
-      .getOrElse(Bad(One(SingleProblem("Parameter targets query not provided"))))
-  }
-
-  def paramCompounds(config: Config): List[String] Or One[ValidationProblem] = {
-    Try(config.getString("query").split(" ").toList)
-      .map(q => Good(q))
-      .getOrElse(Bad(One(SingleProblem("Parameter compounds not provided"))))
-  }
-
-  def paramSamples(config: Config): List[String] Or One[ValidationProblem] = {
-    Try(config.getString("samples").split(" ").toList)
-      .map(q => Good(q))
-      .getOrElse(Bad(One(SingleProblem("Parameter samples not provided"))))
-  }
-
-  def paramSorted(config: Config): Boolean Or One[ValidationProblem] = {
-    Try(config.getString("sorted").toBoolean)
-      .map(q => Good(q))
-      .getOrElse(Bad(One(SingleProblem("Parameter sorted not provided or not boolean"))))
-  }
-
-  def optParamBinsX(config: Config, default: Int = 20): Int = {
-    Try(config.getString("binsX").toInt).getOrElse(default)
-  }
-
-  def optParamHead(config: Config, default: Int = 0): Int = {
-    Try(config.getString("head").toInt).getOrElse(default)
-  }
-
-  def optParamTail(config: Config, default: Int = 0): Int = {
-    Try(config.getString("tail").toInt).getOrElse(default)
-  }
-
-  def validHeadTail(config: Config): Boolean Or One[ValidationProblem] = {
-    if (optParamHead(config) > 0 || optParamTail(config) > 0) Good(true)
-    else Bad(One(SingleProblem("Either head or tail count needs to be provided")))
-  }
-
-  def optParamBins(config: Config, default: Int = 15): Int = {
-    Try(config.getString("binsX").toInt).getOrElse(default)
-  }
-
-  def optParamBinsY(config: Config, default: Int = 20): Int = {
-    Try(config.getString("binsY").toInt).getOrElse(default)
-  }
-
-  def optParamSignature(config: Config, default: List[String] = List(".*")): List[String] = {
-    Try(config.getString("query").split(" ").toList).getOrElse(default)
-  }
-
-  def optParamVersion(config: Config, default: String = "v2"): String = {
-    Try(config.getString("version")).getOrElse(default)
-  }
-
-  def optParamFilterConcentration(config: Config, default: String = ""): String = {
-    Try(config.getString("filter.concentration")).getOrElse(default)
-  }
-
-  def optParamFilterProtocol(config: Config, default: String = ""): String = {
-    Try(config.getString("filter.protocol")).getOrElse(default)
-  }
-
-  def optParamFilterType(config: Config, default: String = ""): String = {
-    Try(config.getString("filter.type")).getOrElse(default)
-  }
-
-  def optParamFilters(config: Config): Map[String, String] = {
-    Map(
-      "concentration" -> optParamFilterConcentration(config),
-      "type" -> optParamFilterType(config),
-      "protocol" -> optParamFilterProtocol(config)
-    )
-  }
-
-  def validVersion(config: Config): Boolean Or One[ValidationProblem] = {
-    if (VERSIONS contains optParamVersion(config)) Good(true)
-    else Bad(One(SingleProblem("Not a valid version identifier")))
-  }
-
-  def optParamPwids(config: Config, default: List[String] = List(".*")): List[String] = {
-    Try(config.getString("pwids").split(" ").toList).getOrElse(default)
-  }
-
-  def optParamLimit(config: Config, default: Int = 10): Int = {
-    Try(config.getString("limit").toInt).getOrElse(default)
-  }
-
-  def optParamFeatures(config: Config, default: List[String] = List(".*")): List[String] = {
-    Try(config.getString("features").toString.split(" ").toList).getOrElse(default)
-  }
-
-  def getDB(runtime: JobEnvironment): Dataset[DbRow] Or One[ValidationProblem] = {
-    Try {
-      val NamedDataSet(db, _, _) = runtime.namedObjects.get[NamedDataSet[DbRow]]("db").get
-      db
-    }.map(db => Good(db))
-      .getOrElse(Bad(One(SingleProblem("Cached DB not available"))))
-  }
-
-  def getGenes(runtime: JobEnvironment): Genes Or One[ValidationProblem] = {
-    Try {
-      val NamedBroadcast(genes) = runtime.namedObjects.get[NamedBroadcast[Genes]]("genes").get
-      genes.value
-    }.map(genes => Good(genes))
-      .getOrElse(Bad(One(SingleProblem("Broadcast genes not available"))))
-  }
-
-  def paramDb(config: Config): String Or One[ValidationProblem] = {
-    Try(config.getString("db"))
-      .map(db => Good(db))
-      .getOrElse(Bad(One(SingleProblem("DB config parameter not provided"))))
-  }
-
-  def paramGenes(config: Config): String Or One[ValidationProblem] = {
-    Try(config.getString("geneAnnotations"))
-      .map(ga => Good(ga))
-      .getOrElse(Bad(One(SingleProblem("geneAnnotations config parameter not provided"))))
-  }
-
-  def paramPartitions(config: Config): Int = {
-    // Optional parameter, default is 24
-    Try(config.getString("partitions").toInt)
-      .getOrElse(24)
-  }
-
-  def paramStorageLevel(config: Config): StorageLevel = {
-    // Optional parameter, default is 24
-    Try(config.getString("storageLevel")).toOption
-      .flatMap(_ match {
-        case "MEMORY_ONLY"   => Some(StorageLevel.MEMORY_ONLY)
-        case "MEMORY_ONLY_2" => Some(StorageLevel.MEMORY_ONLY_2)
-        case _               => None
-      })
-      .getOrElse(StorageLevel.MEMORY_ONLY)
-  }
-
-
 }

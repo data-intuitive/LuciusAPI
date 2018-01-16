@@ -1,7 +1,7 @@
 package com.dataintuitive.luciusapi
 
 // Functions implementation and common code
-import Common._
+import Common.ParamHandlers._
 
 // LuciusCore
 import com.dataintuitive.luciuscore.Model.DbRow

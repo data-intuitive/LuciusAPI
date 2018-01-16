@@ -10,6 +10,8 @@ import scala.collection.immutable.Map
 
 object TargetToCompoundsFunctions extends SessionFunctions {
 
+  import com.dataintuitive.luciusapi.Common.Variables._
+
   case class JobData(db: Dataset[DbRow],
                      genes: Genes,
                      version: String,
@@ -18,22 +20,6 @@ object TargetToCompoundsFunctions extends SessionFunctions {
 
   type JobOutput = Array[Map[String, Any]]
 
-
-  val PWID =  Set("id", "pwid")
-  val JNJS = Set("jnjs", "Jnjs")
-  val JNJB = Set("jnjb", "Jnjb")
-  val SMILES = Set("Smiles", "smiles", "SMILES")
-  val INCHIKEY = Set("inchikey", "Inchikey")
-  val COMPOUNDNAME = Set("compoundname", "CompoundName", "Compoundname", "name", "Name")
-  val TYPE = Set("Type", "type")
-  val BATCH = Set("batch", "Batch")
-  val PLATEID = Set("plateid", "PlateId")
-  val WELL = Set("well", "Well")
-  val PROTOCOLNAME = Set("protocolname", "cellline", "CellLine", "ProtocolName")
-  val CONCENTRATION = Set("concentration", "Concentration")
-  val YEAR = Set("year", "Year")
-  val TARGETS = Set("targets", "knownTargets", "Targets")
-  val SIGNIFICANTGENES = Set("significantGenes")
 
   def featureByLens[T](lens:CompoundAnnotations => T)(r:CompoundAnnotations) = lens(r)
 
