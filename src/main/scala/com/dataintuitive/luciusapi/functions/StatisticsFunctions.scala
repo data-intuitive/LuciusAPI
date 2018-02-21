@@ -7,10 +7,11 @@ import org.apache.spark.sql.SparkSession
 import com.dataintuitive.luciuscore.GeneModel.Genes
 import com.dataintuitive.luciuscore.Model.DbRow
 import scala.collection.immutable.Map
+import com.dataintuitive.luciusapi.Model.FlatDbRow
 
 object StatisticsFunctions extends SessionFunctions {
 
-  case class JobData(db: Dataset[DbRow], genes: Genes)
+  case class JobData(db: Dataset[DbRow], flatDb: Dataset[FlatDbRow], genes: Genes)
   type JobOutput = Map[String, Any]
 
   val helpMsg =
@@ -24,57 +25,56 @@ object StatisticsFunctions extends SessionFunctions {
 
     import sparkSession.implicits._
 
-    val db = data.db
-    val genes = data.genes
+    val flatDb = data.flatDb
 
     val compounds = Map(
-      "total" -> db
-        .filter(_.sampleAnnotations.sample.getProtocolname != "")
-        .map(_.compoundAnnotations.compound.jnjs)
+      "total" -> flatDb
+        .filter($"protocolname" !== "")
+        .select($"jnjs")
         .distinct
         .count,
-      "mcf7" -> db
-        .filter(_.sampleAnnotations.sample.getProtocolname == "MCF7")
-        .map(_.compoundAnnotations.compound.jnjs)
+      "mcf7" -> flatDb
+        .filter($"protocolname" === "MCF7")
+        .select($"jnjs")
         .distinct
         .count,
-      "pbmc" -> db
-        .filter(_.sampleAnnotations.sample.getProtocolname == "PBMC")
-        .map(_.compoundAnnotations.compound.jnjs)
+       "pbmc" -> flatDb
+        .filter($"protocolname" === "PBMC")
+        .select($"jnjs")
         .distinct
         .count
-    )
+     )
 
     val samples = Map(
-      "total" -> db
-        .filter(_.sampleAnnotations.sample.getProtocolname != "")
-        .map(_.pwid)
+      "total" -> flatDb
+        .filter($"protocolname" !== "")
+        .select($"pwid")
         .distinct
         .count,
-      "mcf7" -> db
-        .filter(_.sampleAnnotations.sample.getProtocolname == "MCF7")
-        .map(_.pwid)
+      "mcf7" -> flatDb
+        .filter($"protocolname" === "MCF7")
+        .select($"pwid")
         .distinct
         .count,
-      "pbmc" -> db
-        .filter(_.sampleAnnotations.sample.getProtocolname == "PBMC")
-        .map(_.pwid)
+      "pbmc" -> flatDb
+        .filter($"protocolname" === "PBMC")
+        .select($"pwid")
         .distinct
         .count
     )
 
     val informative = Map(
-      "total" -> db
-        .filter(_.sampleAnnotations.sample.getProtocolname != "")
-        .filter(sample => sample.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0)
+      "total" -> flatDb
+        .filter($"protocolname" !== "")
+        .filter($"informative")
         .count,
-      "mcf7" -> db
-        .filter(_.sampleAnnotations.sample.getProtocolname == "MCF7")
-        .filter(sample => sample.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0)
+      "mcf7" -> flatDb
+        .filter($"protocolname" === "MCF7")
+        .filter($"informative")
         .count,
-      "pbmc" -> db
-        .filter(_.sampleAnnotations.sample.getProtocolname == "PBMC")
-        .filter(sample => sample.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0)
+      "pbmc" -> flatDb
+        .filter($"protocolname"=== "PBMC")
+        .filter($"informative")
         .count
     )
 

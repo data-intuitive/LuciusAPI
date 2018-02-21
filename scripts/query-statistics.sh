@@ -11,6 +11,10 @@ source "$CONFIG/settings.sh"
 # Convert app name to lowercase
 APPLC=$(echo $APP | tr "[:upper:]" "[:lower:]")
 
-URI="$jobserver:8090/jobs?context=$APPLC&appName=$APPLC&classPath=$CP.statistics&sync=true"
+echo
+echo "Running statistics query on $APP "
+echo
+
+URI="$jobserver/jobs?context=$APPLC&appName=$APPLC&classPath=$CP.statistics&sync=true"
 
 curl -d $'' $URI 

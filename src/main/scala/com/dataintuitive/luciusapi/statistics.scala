@@ -38,9 +38,10 @@ object statistics extends SparkSessionJob with NamedObjectSupport {
                         config: Config): JobData Or Every[ValidationProblem] = {
 
     val db = getDB(runtime)
+    val flatDb = getFlatDB(runtime)
     val genes = getGenes(runtime)
 
-    withGood(db, genes) { JobData(_, _) }
+    withGood(db, flatDb, genes) { JobData(_, _, _) }
 
   }
 

@@ -4,6 +4,9 @@ This project provides the API for [LuciusWeb](https://github.com/data-intuitive/
 
 There's still a lot of work to be done on this (version numbers don't reflect everything).
 
+__Please note that version 2.1.0 and onwards is for Spark 2.2.1.__
+
+
 # API
 
 The documentation of the (__old version__) of the API is available in [postman](https://www.getpostman.com/) and [can be found here](https://www.getpostman.com/collections/cf537f6cae9b82c35034).

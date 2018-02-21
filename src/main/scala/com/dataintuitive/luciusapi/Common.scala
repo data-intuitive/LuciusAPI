@@ -22,6 +22,11 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 
+import com.dataintuitive.luciusapi.Model.FlatDbRow
+
+import com.dataintuitive.jobserver.NamedDataSet
+import com.dataintuitive.jobserver.DataSetPersister
+
 /**
   * Common functionality, encapsulating the fact that we want to run tests outside of jobserver as well.
   */
@@ -34,7 +39,7 @@ object Common extends Serializable {
     new BroadcastPersister[U]
   implicit def DataSetPersister[T]: NamedObjectPersister[NamedDataSet[T]] = new DataSetPersister[T]
 
-  case class CachedData(db: Dataset[DbRow], genes: Genes)
+  case class CachedData(db: Dataset[DbRow], flatDb: Dataset[FlatDbRow], genes: Genes)
 
   object ParamHandlers {
 
@@ -156,6 +161,14 @@ object Common extends Serializable {
         db
       }.map(db => Good(db))
         .getOrElse(Bad(One(SingleProblem("Cached DB not available"))))
+    }
+
+    def getFlatDB(runtime: JobEnvironment): Dataset[FlatDbRow] Or One[ValidationProblem] = {
+      Try {
+        val NamedDataSet(flatdb, _, _) = runtime.namedObjects.get[NamedDataSet[FlatDbRow]]("flatdb").get
+        flatdb
+      }.map(flatdb => Good(flatdb))
+        .getOrElse(Bad(One(SingleProblem("Cached FlatDB not available"))))
     }
 
     def getGenes(runtime: JobEnvironment): Genes Or One[ValidationProblem] = {

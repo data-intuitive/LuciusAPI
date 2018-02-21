@@ -21,6 +21,12 @@ import org.apache.spark.storage.StorageLevel
 import org.apache.spark.storage.StorageLevel._
 import spark.jobserver._
 
+import Common._
+import com.dataintuitive.luciusapi.Model.FlatDbRow
+
+import com.dataintuitive.jobserver.NamedDataSet
+import com.dataintuitive.jobserver.DataSetPersister
+
 /**
   * Initialize the API by caching the database with sample-compound information
   *
@@ -37,8 +43,6 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
                      partitions: Int,
                      storageLevel: StorageLevel)
   type JobOutput = collection.Map[String, Any]
-
-  import Common._
 
   override def validate(sparkSession: SparkSession,
                         runtime: JobEnvironment,
@@ -58,10 +62,12 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
                       data: JobData): JobOutput = {
 
     import sparkSession.implicits._
-    implicit def DataSetPersister[T]: NamedObjectPersister[NamedDataSet[T]] =
-      new DataSetPersister[T]
-    implicit def broadcastPersister[U]: NamedObjectPersister[NamedBroadcast[U]] =
-      new BroadcastPersister[U]
+    // implicit def DataSetPersister[T]: NamedObjectPersister[NamedDataSet[T]] =
+    //   new DataSetPersister[T]
+    // implicit def broadcastPersister[U]: NamedObjectPersister[NamedBroadcast[U]] =
+    //   new BroadcastPersister[U]
+
+    sparkSession.sqlContext.setConf("spark.sql.shuffle.partitions", data.partitions.toString)
 
     // Backward compatibility
     val fs_s3_awsAccessKeyId = sys.env
@@ -78,6 +84,7 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     val genes =
       GenesIO.loadGenesFromFile(sparkSession.sparkContext, data.geneAnnotations)
     val genesBC = sparkSession.sparkContext.broadcast(genes)
+
     runtime.namedObjects.update("genes", NamedBroadcast(genesBC))
 
     // Load data
@@ -85,64 +92,32 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
       .parquet(data.db)
       .as[DbRow]
       .repartition(data.partitions)
-    runtime.namedObjects.update(
-      "db",
-      NamedDataSet[DbRow](db, forceComputation = true, storageLevel = data.storageLevel))
+
+    val dbNamedDataset = NamedDataSet[DbRow](db, forceComputation = true, storageLevel = data.storageLevel)
+
+    runtime.namedObjects.update("db", dbNamedDataset)
+      
+    val flatDb = db.map( row =>
+      FlatDbRow(
+        row.pwid.getOrElse("NA"),
+        row.sampleAnnotations.sample.getProtocolname,
+        row.compoundAnnotations.compound.getJnjs,
+        row.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0
+      )
+    )
+
+    val flatDbNamedDataset = NamedDataSet[FlatDbRow](flatDb, forceComputation = true, storageLevel = data.storageLevel)
+
+    runtime.namedObjects.update("flatdb", flatDbNamedDataset)
 
     // "LuciusAPI initialized..."
 
     Map(
       "info" -> "Initialization done",
       "header" -> "None",
-      "data" -> db.count
+      "data" -> (db.rdd.count, flatDb.rdd.count)
     )
   }
 
 }
 
-/**
-  * wrapper for named objects of type DataFrame
-  */
-case class NamedDataSet[T](ds: Dataset[T], forceComputation: Boolean, storageLevel: StorageLevel)
-    extends NamedObject
-
-/**
-  * implementation of a NamedObjectPersister for DataSet objects
-  *
-  */
-class DataSetPersister[T] extends NamedObjectPersister[NamedDataSet[T]] {
-
-  override def persist(namedObj: NamedDataSet[T], name: String) {
-    namedObj match {
-      case NamedDataSet(ds, forceComputation, storageLevel) =>
-        require(!forceComputation || storageLevel != StorageLevel.NONE,
-                "forceComputation implies storageLevel != NONE")
-        //these are not supported by DataFrame:
-        //df.setName(name)
-        //df.getStorageLevel match
-        ds.persist(storageLevel)
-        // perform some action to force computation
-        if (forceComputation) ds.count()
-    }
-  }
-
-  override def unpersist(namedObj: NamedDataSet[T]) {
-    namedObj match {
-      case NamedDataSet(ds, _, _) =>
-        ds.unpersist(blocking = false)
-    }
-  }
-
-  /**
-    * Calls df.persist(), which updates the DataFrame's cached timestamp, meaning it won't get
-    * garbage collected by Spark for some time.
-    * @param namedDF the NamedDataFrame to refresh
-    */
-  override def refresh(namedDS: NamedDataSet[T]): NamedDataSet[T] =
-    namedDS match {
-      case NamedDataSet(ds, _, storageLevel) =>
-        ds.persist(storageLevel)
-        namedDS
-    }
-
-}
