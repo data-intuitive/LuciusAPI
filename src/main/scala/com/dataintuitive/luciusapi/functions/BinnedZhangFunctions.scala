@@ -21,7 +21,7 @@ object BinnedZhangFunctions extends SessionFunctions {
                      signatureQuery: Array[String],
                      binsX: Int,
                      binsY: Int,
-                     filters: Map[String, String])
+                     filters: Map[String, List[String]])
 
   type JobOutput = Seq[Map[String, Any]]
 
@@ -46,26 +46,26 @@ object BinnedZhangFunctions extends SessionFunctions {
     val signature = SymbolSignature(rawSignature)
 
     // Filters
-    val filterConcentrationSpecified = filters.getOrElse("concentration", "") != ""
+    val filterConcentrationSpecified = filters.getOrElse("concentration", List()) != List()
     def concentrationFilter(sample: DbRow): Boolean =
       if (filterConcentrationSpecified)
-        sample.sampleAnnotations.sample.concentration
-          .getOrElse("NA")
-          .matches(filters("concentration"))
-      else
+        filters("concentration").toSet
+          .contains(sample.sampleAnnotations.sample.concentration.getOrElse("NA"))
+      else // return all records
         true
 
-    val filterProtocolSpecified = filters.getOrElse("protocol", "") != ""
+    val filterProtocolSpecified = filters.getOrElse("protocol", List()) != List()
     def protocolFilter(sample: DbRow): Boolean =
       if (filterProtocolSpecified)
-        sample.sampleAnnotations.sample.protocolname.getOrElse("NA").matches(filters("protocol"))
+        filters("protocol").toSet
+          .contains(sample.sampleAnnotations.sample.protocolname.getOrElse("NA"))
       else
         true
 
-    val filterTypeSpecified = filters.getOrElse("type", "") != ""
+    val filterTypeSpecified = filters.getOrElse("type", List()) != List()
     def typeFilter(sample: DbRow): Boolean =
       if (filterTypeSpecified)
-        sample.compoundAnnotations.compound.ctype.getOrElse("NA").matches(filters("type"))
+        filters("type").toSet.contains(sample.compoundAnnotations.compound.ctype.getOrElse("NA"))
       else
         true
 

@@ -13,6 +13,7 @@ import scala.util.Try
 import org.scalactic._
 import Accumulation._
 import com.typesafe.config.Config
+import collection.JavaConverters._
 
 // Spark
 import org.apache.spark.sql.SparkSession
@@ -118,19 +119,19 @@ object Common extends Serializable {
       Try(config.getString("version")).getOrElse(default)
     }
 
-    def optParamFilterConcentration(config: Config, default: String = ""): String = {
-      Try(config.getString("filter.concentration")).getOrElse(default)
+    def optParamFilterConcentration(config: Config, default: List[String] = List()): List[String] = {
+      Try(config.getStringList("filter.concentration")).map(_.asScala.toList).getOrElse(default)
     }
 
-    def optParamFilterProtocol(config: Config, default: String = ""): String = {
-      Try(config.getString("filter.protocol")).getOrElse(default)
+    def optParamFilterProtocol(config: Config, default: List[String] = List()): List[String] = {
+      Try(config.getStringList("filter.protocol")).map(_.asScala.toList).getOrElse(default)
     }
 
-    def optParamFilterType(config: Config, default: String = ""): String = {
-      Try(config.getString("filter.type")).getOrElse(default)
+    def optParamFilterType(config: Config, default: List[String] = List()): List[String] = {
+      Try(config.getStringList("filter.type")).map(_.asScala.toList).getOrElse(default)
     }
 
-    def optParamFilters(config: Config): Map[String, String] = {
+    def optParamFilters(config: Config): Map[String, List[String]] = {
       Map(
         "concentration" -> optParamFilterConcentration(config),
         "type" -> optParamFilterType(config),
