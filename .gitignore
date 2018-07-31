@@ -21,3 +21,5 @@ ensime.sbt
 .worksheet
 .idea
 .vscode
+
+scripts/
