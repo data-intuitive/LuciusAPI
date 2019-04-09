@@ -50,6 +50,18 @@ object Common extends Serializable {
         .getOrElse(Bad(One(SingleProblem("Signature query not provided"))))
     }
 
+    def paramSignature1(config: Config): List[String] Or One[ValidationProblem] = {
+      Try(config.getString("query1").split(" ").toList)
+        .map(q => Good(q))
+        .getOrElse(Bad(One(SingleProblem("Signature query not provided"))))
+    }
+
+    def paramSignature2(config: Config): List[String] Or One[ValidationProblem] = {
+      Try(config.getString("query2").split(" ").toList)
+        .map(q => Good(q))
+        .getOrElse(Bad(One(SingleProblem("Signature query not provided"))))
+    }
+
     def paramCompoundQ(config: Config): String Or One[ValidationProblem] = {
       Try(config.getString("query"))
         .map(q => Good(q))
