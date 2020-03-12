@@ -20,6 +20,10 @@ ensime.sbt
 .scala_dependencies
 .worksheet
 .idea
-.vscode
+vscode
 
 scripts/
+
+.metals/
+.bloop/
+project/metals.sbt
