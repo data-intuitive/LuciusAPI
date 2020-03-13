@@ -14,7 +14,7 @@ export APP_VERSION="3.1.0"
 
 # Location
 # export APP_PATH="/home/toni/code/compass/LuciusAPI"
-export APP_PATH="$LUCIUSAPIPATH"
+export APP_PATH="$LUCIUSAPI_APP_PATH"
 
 # The config file to be used for initialization, default is docker
 export INIT_CONF="initialize-local.conf"
