@@ -1,6 +1,6 @@
 package com.dataintuitive.luciusapi
 
-import com.dataintuitive.luciuscore.GeneModel._
+import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.Model.DbRow
 import com.dataintuitive.luciuscore.io.GenesIO
 import com.typesafe.config.Config
@@ -83,7 +83,8 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     // Loading gene annotations and broadcast
     val genes =
       GenesIO.loadGenesFromFile(sparkSession.sparkContext, data.geneAnnotations)
-    val genesBC = sparkSession.sparkContext.broadcast(genes)
+    val genesDB = new GenesDB(genes)
+    val genesBC = sparkSession.sparkContext.broadcast(genesDB)
 
     runtime.namedObjects.update("genes", NamedBroadcast(genesBC))
 
@@ -96,7 +97,7 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     val dbNamedDataset = NamedDataSet[DbRow](db, forceComputation = true, storageLevel = data.storageLevel)
 
     runtime.namedObjects.update("db", dbNamedDataset)
-      
+
     val flatDb = db.map( row =>
       FlatDbRow(
         row.pwid.getOrElse("NA"),

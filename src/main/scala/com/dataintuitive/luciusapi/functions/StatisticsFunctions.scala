@@ -4,14 +4,14 @@ import org.apache.spark
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
-import com.dataintuitive.luciuscore.GeneModel.Genes
+import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.Model.DbRow
 import scala.collection.immutable.Map
 import com.dataintuitive.luciusapi.Model.FlatDbRow
 
 object StatisticsFunctions extends SessionFunctions {
 
-  case class JobData(db: Dataset[DbRow], flatDb: Dataset[FlatDbRow], genes: Genes)
+  case class JobData(db: Dataset[DbRow], flatDb: Dataset[FlatDbRow], genes: GenesDB)
   type JobOutput = Map[String, Any]
 
   val helpMsg =

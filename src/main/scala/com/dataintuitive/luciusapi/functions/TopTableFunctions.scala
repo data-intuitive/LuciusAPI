@@ -1,8 +1,8 @@
 package com.dataintuitive.luciusapi.functions
 
-import com.dataintuitive.luciuscore.GeneModel.Genes
+import com.dataintuitive.luciuscore.genes._
+import com.dataintuitive.luciuscore.signatures._
 import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.SignatureModel.SymbolSignature
 import com.dataintuitive.luciuscore.TransformationFunctions._
 import com.dataintuitive.luciuscore.ZhangScoreFunctions._
 import org.apache.spark.rdd.RDD
@@ -16,7 +16,7 @@ object TopTableFunctions extends SessionFunctions {
   import com.dataintuitive.luciusapi.Common.Variables._
 
   case class JobData(db: Dataset[DbRow],
-                     genes: Genes,
+                     genes: GenesDB,
                      version: String,
                      head: Int,
                      tail: Int,
@@ -85,7 +85,8 @@ object TopTableFunctions extends SessionFunctions {
 
   def result(data: JobData)(implicit sparkSession: SparkSession) = {
 
-    val JobData(db, genes, version, head, tail, signatureQuery, featuresQuery, filters) = data
+    val JobData(db, genesDB, version, head, tail, signatureQuery, featuresQuery, filters) = data
+    implicit val genes = genesDB
 
     val signatureSpecified = !(signatureQuery.headOption.getOrElse(".*") == ".*")
     val featuresSpecified = !(featuresQuery.headOption.getOrElse(".*") == ".*")
@@ -115,17 +116,13 @@ object TopTableFunctions extends SessionFunctions {
         true
 
     // TODO: Make sure we continue with all symbols, or just make the job invalid when it isn't!
-    val signature = SymbolSignature(signatureQuery.toArray)
-    val symbolDict = genes.symbol2ProbesetidDict
-    val indexDict = genes.index2ProbesetidDict
-    val iSignature = signature
-      .translate2Probesetid(symbolDict)
-      .translate2Index(indexDict)
+    val signature = new SymbolSignature(signatureQuery.toArray)
+    val iSignature = signature.toIndexSignature
 
     // Just taking the first element t vector is incorrect, what do we use options for after all?!
     // So... a version of takeWhile to the rescue
     val vLength = db.filter(_.sampleAnnotations.t.isDefined).first.sampleAnnotations.t.get.length
-    val query = signature2OrderedRankVector(iSignature, vLength)
+    val query = iSignature.toOrderedRankVector(vLength)
 
     // Calculate Zhang score for all entries that contain a rank vector
     // This should be used in a flatMap

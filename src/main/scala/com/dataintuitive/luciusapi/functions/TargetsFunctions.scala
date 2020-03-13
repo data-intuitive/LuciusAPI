@@ -1,6 +1,6 @@
 package com.dataintuitive.luciusapi.functions
 
-import com.dataintuitive.luciuscore.GeneModel.Genes
+import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.Model.DbRow
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
@@ -10,7 +10,7 @@ import scala.collection.immutable.Map
 object TargetsFunctions extends SessionFunctions {
 
   case class JobData(db: Dataset[DbRow],
-                     genes: Genes,
+                     genes: GenesDB,
                      version: String,
                      targetQuery: String,
                      limit: Int)
@@ -34,7 +34,8 @@ object TargetsFunctions extends SessionFunctions {
 
     import sparkSession.implicits._
 
-    val JobData(db, genes, version, targetQuery, limit) = data
+    val JobData(db, genesDB, version, targetQuery, limit) = data
+    implicit val genes = genesDB
 
     val resultRDD =
       db.rdd.map(_.compoundAnnotations)

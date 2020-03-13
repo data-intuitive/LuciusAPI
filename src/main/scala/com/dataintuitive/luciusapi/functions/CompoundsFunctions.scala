@@ -1,6 +1,6 @@
 package com.dataintuitive.luciusapi.functions
 
-import com.dataintuitive.luciuscore.GeneModel.Genes
+import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.Model.DbRow
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
@@ -10,7 +10,7 @@ import scala.collection.immutable.Map
 object CompoundsFunctions extends SessionFunctions {
 
   case class JobData(db: Dataset[DbRow],
-                     genes: Genes,
+                     genesDB: GenesDB,
                      version: String,
                      compoundQuery: String,
                      limit: Int)
@@ -34,7 +34,8 @@ object CompoundsFunctions extends SessionFunctions {
 
     import sparkSession.implicits._
 
-    val JobData(db, genes, version, compoundQuery, limit) = data
+    val JobData(db, genesDB, version, compoundQuery, limit) = data
+    implicit val genes = genesDB
 
     // I could distinguish on version as well, but this makes more sense
     // This way, the same function can be reused for v1 and v2

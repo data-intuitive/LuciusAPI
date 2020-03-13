@@ -4,13 +4,12 @@ import org.apache.spark
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
-import com.dataintuitive.luciuscore.GeneModel.Genes
+import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.Model.DbRow
 import scala.collection.immutable.Map
 
-import com.dataintuitive.luciuscore.GeneModel.Genes
 import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.SignatureModel.SymbolSignature
+import com.dataintuitive.luciuscore.signatures._
 import com.dataintuitive.luciuscore.TransformationFunctions._
 import com.dataintuitive.luciuscore.ZhangScoreFunctions._
 import org.apache.spark.rdd.RDD
@@ -22,7 +21,7 @@ object AnnotatedplatewellidsFunctions extends SessionFunctions {
   import com.dataintuitive.luciusapi.Common.Variables._
 
   case class JobData(db: Dataset[DbRow],
-                     genes: Genes,
+                     genesDB: GenesDB,
                      version: String,
                      signatureQuery: List[String],
                      limit: Int,
@@ -106,7 +105,8 @@ object AnnotatedplatewellidsFunctions extends SessionFunctions {
     import sparkSession.implicits._
 
     val db = data.db.rdd
-    val genes = data.genes
+    val genesDB = data.genesDB
+    implicit val genes = genesDB
     val version = data.version
     val signatureQuery = data.signatureQuery
     val limit = data.limit
@@ -118,17 +118,12 @@ object AnnotatedplatewellidsFunctions extends SessionFunctions {
     val featuresSpecified = !(featuresQuery.headOption.getOrElse(".*") == ".*")
 
     // TODO: Make sure we continue with all symbols, or just make the job invalid when it isn't!
-    val signature = SymbolSignature(signatureQuery.toArray)
-    val symbolDict = genes.symbol2ProbesetidDict
-    val indexDict = genes.index2ProbesetidDict
-    val iSignature = signature
-      .translate2Probesetid(symbolDict)
-      .translate2Index(indexDict)
+    val signature = new SymbolSignature(signatureQuery.toArray)
 
     // Just taking the first element t vector is incorrect, what do we use options for after all?!
     // So... a version of takeWhile to the rescue
     val vLength = db.filter(_.sampleAnnotations.t.isDefined).first.sampleAnnotations.t.get.length
-    val query = signature2OrderedRankVector(iSignature, vLength)
+    val query = signature.toIndexSignature.toOrderedRankVector(vLength)
 
     // Calculate Zhang score for all entries that contain a rank vector
     // This should be used in a flatMap

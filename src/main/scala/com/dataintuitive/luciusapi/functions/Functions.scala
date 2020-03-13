@@ -1,6 +1,6 @@
 package com.dataintuitive.luciusapi.functions
 
-import com.dataintuitive.luciuscore.GeneModel.Genes
+import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.Model.DbRow
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.{SparkSession, Dataset}

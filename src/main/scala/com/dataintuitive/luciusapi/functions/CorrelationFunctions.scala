@@ -1,8 +1,8 @@
 package com.dataintuitive.luciusapi.functions
 
-import com.dataintuitive.luciuscore.GeneModel.Genes
+import com.dataintuitive.luciuscore.genes._
+import com.dataintuitive.luciuscore.signatures._
 import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.SignatureModel.SymbolSignature
 import com.dataintuitive.luciuscore.TransformationFunctions._
 import com.dataintuitive.luciuscore.ZhangScoreFunctions._
 import com.dataintuitive.luciuscore.DbFunctions._
@@ -15,7 +15,7 @@ import scala.collection.immutable.Map
 object CorrelationFunctions extends SessionFunctions {
 
   case class JobData(db: Dataset[DbRow],
-                     genes: Genes,
+                     genesDB: GenesDB,
                      version: String,
                      signatureQuery1: Array[String],
                      signatureQuery2: Array[String],
@@ -35,15 +35,15 @@ object CorrelationFunctions extends SessionFunctions {
   def result(data: JobData)(implicit sparkSession: SparkSession) = {
 
     val db = data.db.rdd
-    val genes = data.genes
+    implicit val genes = data.genesDB
     val rawSignature1 = data.signatureQuery1
     val rawSignature2 = data.signatureQuery2
     val bins = data.bins
     val filters = data.filters
 
     // TODO: Make sure we continue with all symbols, or just make the job invalid when it isn't!
-    val signature1 = SymbolSignature(rawSignature1)
-    val signature2 = SymbolSignature(rawSignature2)
+    val signature1 = new SymbolSignature(rawSignature1)
+    val signature2 = new SymbolSignature(rawSignature2)
 
     // Filters
     val filterConcentrationSpecified = filters.getOrElse("concentration", List()) != List()
@@ -69,18 +69,12 @@ object CorrelationFunctions extends SessionFunctions {
       else
         true
 
-    val symbolDict = genes.symbol2ProbesetidDict
-    val indexDict = genes.index2ProbesetidDict
-    val iSignature1 = signature1
-      .translate2Probesetid(symbolDict)
-      .translate2Index(indexDict)
-    val iSignature2 = signature2
-      .translate2Probesetid(symbolDict)
-      .translate2Index(indexDict)
+    val iSignature1 = signature1.toIndexSignature
+    val iSignature2 = signature2.toIndexSignature
 
     val vLength = db.first.sampleAnnotations.t.get.length
-    val query1 = signature2OrderedRankVector(iSignature1, vLength)
-    val query2 = signature2OrderedRankVector(iSignature2, vLength)
+    val query1 = iSignature1.toOrderedRankVector(vLength)
+    val query2 = iSignature2.toOrderedRankVector(vLength)
     val queries = List(query1, query2)
 
     // Calculate Zhang score for all entries that contain a rank vector

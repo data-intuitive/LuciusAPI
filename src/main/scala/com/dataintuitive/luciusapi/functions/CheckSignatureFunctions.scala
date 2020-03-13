@@ -1,6 +1,6 @@
 package com.dataintuitive.luciusapi.functions
 
-import com.dataintuitive.luciuscore.GeneModel.Genes
+import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.utilities.SignedString
 import com.dataintuitive.luciuscore.Model.DbRow
 import org.apache.spark.rdd.RDD
@@ -13,7 +13,7 @@ import scala.collection.immutable.Map
   */
 object CheckSignatureFunctions extends SessionFunctions {
 
-  case class JobData(db: Dataset[DbRow], genes: Genes, version: String, signature: List[String])
+  case class JobData(db: Dataset[DbRow], genesDB: GenesDB, version: String, signature: List[String])
 
   type JobOutput = List[Map[String, Any]]
 
@@ -33,15 +33,18 @@ object CheckSignatureFunctions extends SessionFunctions {
 
     implicit def signString(string: String) = new SignedString(string)
 
-    val JobData(db, genes, version, rawSignature) = data
+    val JobData(db, genesDB, version, rawSignature) = data
+    implicit val genes = genesDB
 
-    // Create dictionary based on l1000 genes
-    val probesetid2symbol = genes.genes.map(x => (x.probesetid, x.symbol)).toMap
-    val ensemblid2symbol = genes.genes.map(x => (x.ensemblid, x.symbol)).toMap
-    val entrezid2symbol = genes.genes.map(x => (x.entrezid, x.symbol)).toMap
-    val symbol2symbol = genes.genes.map(x => (x.symbol, x.symbol)).toMap
-
-    val tt = probesetid2symbol ++ ensemblid2symbol ++ entrezid2symbol ++ symbol2symbol
+    val tt = genesDB
+              .createSymbolDictionary
+              .map(_.swap)
+              .flatMap{ case (gene, symbol) =>
+                List(
+                  (gene.probesetid, symbol),
+                  (gene.ensemblid.map(_.toList.head).getOrElse("NA"), symbol),
+                  (gene.symbol.map(_.toList.head).getOrElse("NA"), symbol))
+              }
 
     val l1000OrNot = rawSignature
       .map(gene => (gene, tt.get(gene.abs)))

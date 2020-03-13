@@ -5,9 +5,9 @@ import Common.ParamHandlers._
 
 // LuciusCore
 import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.GeneModel._
+import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.TransformationFunctions
-import com.dataintuitive.luciuscore.SignatureModel._
+import com.dataintuitive.luciuscore.signatures._
 
 // Jobserver
 import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
@@ -25,7 +25,7 @@ import org.apache.spark.sql.Dataset
 
 object generateSignature extends SparkSessionJob with NamedObjectSupport {
 
-  case class JobData(db: Dataset[DbRow], genes: Genes, version: String, samples: List[String])
+  case class JobData(db: Dataset[DbRow], genesDB: GenesDB, version: String, samples: List[String])
 
   type JobOutput = Array[String]
 
@@ -52,7 +52,9 @@ object generateSignature extends SparkSessionJob with NamedObjectSupport {
 
     implicit val thisSession = sparkSession
 
-    val JobData(db, genes, version, samples) = data
+    val JobData(db, genesDB, version, samples) = data
+
+    implicit val genes = genesDB
 
     // Start with query compound and retrieve indices
     val selection =
@@ -65,14 +67,9 @@ object generateSignature extends SparkSessionJob with NamedObjectSupport {
     val indexSignature: IndexSignature =
       TransformationFunctions.rankVector2IndexSignature(rankVector)
 
-    // dict's
-    val symbolDict = genes.symbol2ProbesetidDict
-    val indexDict = genes.index2ProbesetidDict
+    val symbolSignature = indexSignature.toSymbolSignature
 
-    val probesetidSignature = indexSignature.translate2Probesetid(indexDict)
-    val symbolSignature = probesetidSignature.translate2Symbol(symbolDict)
-
-    symbolSignature.signature
+    symbolSignature.toArray
 
   }
 

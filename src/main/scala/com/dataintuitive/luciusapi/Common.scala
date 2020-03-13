@@ -2,7 +2,7 @@ package com.dataintuitive.luciusapi
 
 // LuciusCore
 import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.GeneModel._
+import com.dataintuitive.luciuscore.genes._
 
 // Jobserver
 import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
@@ -40,7 +40,7 @@ object Common extends Serializable {
     new BroadcastPersister[U]
   implicit def DataSetPersister[T]: NamedObjectPersister[NamedDataSet[T]] = new DataSetPersister[T]
 
-  case class CachedData(db: Dataset[DbRow], flatDb: Dataset[FlatDbRow], genes: Genes)
+  case class CachedData(db: Dataset[DbRow], flatDb: Dataset[FlatDbRow], genesDB: GenesDB)
 
   object ParamHandlers {
 
@@ -184,9 +184,9 @@ object Common extends Serializable {
         .getOrElse(Bad(One(SingleProblem("Cached FlatDB not available"))))
     }
 
-    def getGenes(runtime: JobEnvironment): Genes Or One[ValidationProblem] = {
+    def getGenes(runtime: JobEnvironment): GenesDB Or One[ValidationProblem] = {
       Try {
-        val NamedBroadcast(genes) = runtime.namedObjects.get[NamedBroadcast[Genes]]("genes").get
+        val NamedBroadcast(genes) = runtime.namedObjects.get[NamedBroadcast[GenesDB]]("genes").get
         genes.value
       }.map(genes => Good(genes))
         .getOrElse(Bad(One(SingleProblem("Broadcast genes not available"))))

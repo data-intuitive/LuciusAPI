@@ -6,7 +6,7 @@ import Common.ParamHandlers._
 
 // LuciusCore
 import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.GeneModel._
+import com.dataintuitive.luciuscore.genes._
 
 // Jobserver
 import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
