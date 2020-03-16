@@ -20,27 +20,18 @@ object TargetToCompoundsFunctions extends SessionFunctions {
 
   type JobOutput = Array[Map[String, Any]]
 
+  import com.dataintuitive.luciuscore.lenses.CompoundAnnotationsLenses._
 
-  def featureByLens[T](lens:CompoundAnnotations => T)(r:CompoundAnnotations) = lens(r)
-
-  val extractJnjs = featureByLens(_.compound.jnjs.getOrElse("No Jnjs")) _
-  val extractJnjb = featureByLens(_.compound.jnjb.getOrElse("No Jnjb")) _
-  val extractSmiles = featureByLens(_.compound.smiles.getOrElse("No Smiles")) _
-  val extractInchikey = featureByLens(_.compound.inchikey.getOrElse("No Inchikey")) _
-  val extractCompoundname = featureByLens(_.compound.name.getOrElse("No Compound Name")) _
-  val extractType = featureByLens(_.compound.ctype.getOrElse("No Compound Type")) _
-
-  val extractTargets = featureByLens(_.getKnownTargets.toList) _
-
-  def extractFeatures(r:CompoundAnnotations, features:List[String]) = features.map{ _ match {
-    case x if JNJS contains x => extractJnjs(r)
-    case x if JNJB contains x => extractJnjb(r)
-    case x if SMILES contains x => extractSmiles(r)
-    case x if INCHIKEY contains x => extractInchikey(r)
-    case x if COMPOUNDNAME contains x => extractCompoundname(r)
-    case x if TYPE contains x => extractType(r)
-    case x if TARGETS contains x => extractTargets(r)
-    case _ => "Feature not found"
+  def extractFeatures(r:CompoundAnnotations, features:List[String]) = features.map{ 
+    _ match {
+      case x if JNJS contains x => safeJnjsLens.get(r)
+      case x if JNJB contains x => safeJnjbLens.get(r)
+      case x if SMILES contains x => safeSmilesLens(r)
+      case x if INCHIKEY contains x => safeInchikeyLens.get(r)
+      case x if COMPOUNDNAME contains x => safeNameLens.get(r)
+      case x if TYPE contains x => safeCtypeLens.get(r)
+      case x if TARGETS contains x => safeKnownTargetsLens.get(r)
+      case _ => "Feature not found"
   }}
 
 

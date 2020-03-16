@@ -19,51 +19,25 @@ object CompoundToSamplesFunctions extends SessionFunctions {
 
   type JobOutput = Array[Map[String, Any]]
 
-  def featureByLens[T](lens: DbRow => T)(r: DbRow) = lens(r)
-
-  val extractPwid = featureByLens(_.pwid.getOrElse("No PWID")) _
-
-  val extractJnjs = featureByLens(_.compoundAnnotations.compound.jnjs.getOrElse("No Jnjs")) _
-  val extractJnjb = featureByLens(_.compoundAnnotations.compound.jnjb.getOrElse("No Jnjb")) _
-  val extractSmiles = featureByLens(_.compoundAnnotations.compound.smiles.getOrElse("No Smiles")) _
-  val extractInchikey = featureByLens(
-    _.compoundAnnotations.compound.inchikey.getOrElse("No Inchikey")) _
-  val extractCompoundname = featureByLens(
-    _.compoundAnnotations.compound.name.getOrElse("No Compound Name")) _
-  val extractType = featureByLens(
-    _.compoundAnnotations.compound.ctype.getOrElse("No Compound Type")) _
-
-  val extractBatch = featureByLens(_.sampleAnnotations.sample.batch.getOrElse("No Batch id")) _
-  val extractPlateid = featureByLens(_.sampleAnnotations.sample.plateid.getOrElse("No Plate id")) _
-  val extractWell = featureByLens(_.sampleAnnotations.sample.well.getOrElse("No Well id")) _
-  val extractProtocolname = featureByLens(
-    _.sampleAnnotations.sample.protocolname.getOrElse("No Protocol")) _
-  val extractConcentration = featureByLens(
-    _.sampleAnnotations.sample.concentration.getOrElse("No Concentration")) _
-  val extractYear = featureByLens(_.sampleAnnotations.sample.year.getOrElse("No Year")) _
-
-  val extractTargets = featureByLens(_.compoundAnnotations.getKnownTargets.toList) _
-  val extractSignificantGenes = featureByLens(
-    _.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0)) _
+  import com.dataintuitive.luciuscore.lenses.DbRowLenses._
 
   def extractFeatures(r: DbRow, features: List[String]) = features.map {
     _ match {
-      case x if PWID contains x             => extractPwid(r)
-      case x if JNJS contains x             => extractJnjs(r)
-      case x if JNJB contains x             => extractJnjb(r)
-      case x if SMILES contains x           => extractSmiles(r)
-      case x if INCHIKEY contains x         => extractInchikey(r)
-      case x if COMPOUNDNAME contains x     => extractCompoundname(r)
-      case x if TYPE contains x             => extractType(r)
-      case x if BATCH contains x            => extractBatch(r)
-      case x if PLATEID contains x          => extractPlateid(r)
-      case x if WELL contains x             => extractWell(r)
-      case x if PROTOCOLNAME contains x     => extractProtocolname(r)
-      case x if CONCENTRATION contains x    => extractConcentration(r)
-      case x if YEAR contains x             => extractYear(r)
-      case x if TARGETS contains x          => extractTargets(r)
-      case x if SIGNIFICANTGENES contains x => extractSignificantGenes(r)
-      case _                                => "Feature not found"
+      case x if PWID contains x          => safePwidLens.get(r)
+      case x if JNJS contains x          => safeJnjsLens.get(r)
+      case x if JNJB contains x          => safeJnjbLens.get(r)
+      case x if SMILES contains x        => safeSmilesLens.get(r)
+      case x if INCHIKEY contains x      => safeInchikeyLens.get(r)
+      case x if COMPOUNDNAME contains x  => safeNameLens.get(r)
+      case x if TYPE contains x          => safeCtypeLens.get(r)
+      case x if BATCH contains x         => safeBatchLens.get(r)
+      case x if PLATEID contains x       => safePlateidLens.get(r)
+      case x if WELL contains x          => safeWellLens.get(r)
+      case x if PROTOCOLNAME contains x  => safeProtocolnameLens.get(r)
+      case x if CONCENTRATION contains x => safeConcentrationLens.get(r)
+      case x if YEAR contains x          => safeYearLens.get(r)
+      case x if TARGETS contains x       => safeKnownTargetsLens.get(r)
+      case _                             => "Feature not found"
     }
   }
 

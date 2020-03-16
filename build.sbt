@@ -1,6 +1,6 @@
 name := "LuciusAPI"
 
-version := "3.1.0"
+version := "3.3.0"
 
 scalaVersion := "2.11.12"
 
@@ -9,14 +9,14 @@ resolvers += "Job Server Bintray" at "https://dl.bintray.com/spark-jobserver/mav
 resolvers += Resolver.githubPackages("data-intuitive")
 
 libraryDependencies ++= Seq(
-  "com.data-intuitive" %% "luciuscore"        % "3.2.9",
+  "com.data-intuitive" %% "luciuscore"        % "3.3.0",
   "spark.jobserver"    %% "job-server-api"    % "0.8.0"      % "provided",
   "spark.jobserver"    %% "job-server-extras" % "0.8.0"      % "provided",
   "org.scalactic"      %% "scalactic"         % "3.0.7"      % "test"    ,
   "org.scalatest"      %% "scalatest"         % "3.0.7"      % "test"    ,
   "org.apache.spark"   %% "spark-core"        % "2.3.1"      % "provided",
-  "org.apache.spark"   %% "spark-sql"         % "2.3.1"      % "provided",
-  "org.scalaz"         %% "scalaz-core"       % "7.2.0"
+  "org.apache.spark"   %% "spark-sql"         % "2.3.1"      % "provided"
+  /* "org.scalaz"         %% "scalaz-core"       % "7.2.0" */
 )
 
 test in assembly := {}
