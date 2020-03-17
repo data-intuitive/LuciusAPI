@@ -37,6 +37,7 @@ object CompoundToSamplesFunctions extends SessionFunctions {
       case x if CONCENTRATION contains x => safeConcentrationLens.get(r)
       case x if YEAR contains x          => safeYearLens.get(r)
       case x if TARGETS contains x       => safeKnownTargetsLens.get(r)
+      case x if SIGNIFICANTGENES contains x => r.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0)
       case _                             => "Feature not found"
     }
   }
