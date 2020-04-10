@@ -2,7 +2,9 @@ package com.dataintuitive.luciusapi
 
 import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.io.GenesIO
+import com.dataintuitive.luciuscore.Model.OldDbRow
+import com.dataintuitive.luciuscore.io.GenesIO._
+import com.dataintuitive.luciuscore.io.IoFunctions._
 import com.typesafe.config.Config
 
 import Common.ParamHandlers._
@@ -27,6 +29,12 @@ import com.dataintuitive.luciusapi.Model.FlatDbRow
 import com.dataintuitive.jobserver.NamedDataSet
 import com.dataintuitive.jobserver.DataSetPersister
 
+import org.apache.spark.rdd.RDD
+import org.apache.spark.SparkContext
+
+object CoreFuncions {
+
+}
 /**
   * Initialize the API by caching the database with sample-compound information
   *
@@ -40,8 +48,10 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
   case class JobData(db: String,
                      geneAnnotations: String,
+                     dbVersion: String,
                      partitions: Int,
-                     storageLevel: StorageLevel)
+                     storageLevel: StorageLevel,
+                     geneFeatures: Map[String, String])
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
@@ -50,10 +60,12 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
     val db = paramDb(config)
     val genes = paramGenes(config)
+    val dbVersion = paramDbVersion(config)
     val partitions = paramPartitions(config)
     val storageLevel = paramStorageLevel(config)
+    val geneFeatures = paramGeneFeatures(config)
 
-    withGood(db, genes) { JobData(_, _, partitions, storageLevel) }
+    withGood(db, genes) { JobData(_, _, dbVersion, partitions, storageLevel, geneFeatures) }
 
   }
 
@@ -82,17 +94,20 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
     // Loading gene annotations and broadcast
     val genes =
-      GenesIO.loadGenesFromFile(sparkSession.sparkContext, data.geneAnnotations)
+      loadGenesFromFile(sparkSession.sparkContext, data.geneAnnotations, delimiter="\t", dict = data.geneFeatures)
     val genesDB = new GenesDB(genes)
     val genesBC = sparkSession.sparkContext.broadcast(genesDB)
 
     runtime.namedObjects.update("genes", NamedBroadcast(genesBC))
 
     // Load data
-    val db = sparkSession.read
+    val parquet = sparkSession.read
       .parquet(data.db)
-      .as[DbRow]
-      .repartition(data.partitions)
+    val dbRaw = (parquet, data.dbVersion) match {
+      case (oldFormatParquet, "v1") => oldFormatParquet.as[OldDbRow].map(_.toDbRow)
+      case (newFormatParquet, _)    => newFormatParquet.as[DbRow]
+    }
+    val db = dbRaw.repartition(data.partitions)
 
     val dbNamedDataset = NamedDataSet[DbRow](db, forceComputation = true, storageLevel = data.storageLevel)
 
@@ -100,7 +115,7 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
     val flatDb = db.map( row =>
       FlatDbRow(
-        row.pwid.getOrElse("NA"),
+        row.id.getOrElse("NA"),
         row.sampleAnnotations.sample.getProtocolname,
         row.compoundAnnotations.compound.getJnjs,
         row.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0
@@ -111,12 +126,10 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
     runtime.namedObjects.update("flatdb", flatDbNamedDataset)
 
-    // "LuciusAPI initialized..."
-
     Map(
       "info" -> "Initialization done",
       "header" -> "None",
-      "data" -> (db.rdd.count, flatDb.rdd.count)
+      "data" -> (db.rdd.count, flatDb.rdd.count, genes)
     )
   }
 

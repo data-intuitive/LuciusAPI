@@ -193,7 +193,7 @@ object Common extends Serializable {
     }
 
     def paramDb(config: Config): String Or One[ValidationProblem] = {
-      Try(config.getString("db"))
+      Try(config.getString("db.uri"))
         .map(db => Good(db))
         .getOrElse(Bad(One(SingleProblem("DB config parameter not provided"))))
     }
@@ -221,12 +221,38 @@ object Common extends Serializable {
         .getOrElse(StorageLevel.MEMORY_ONLY)
     }
 
+    def paramDbVersion(config: Config, default: String = "v2"): String = {
+      Try(config.getString("db.version")).getOrElse(default)
+    }
+
+    val defaultDict = Map(
+        "probesetID" -> "probesetid",
+        "dataType" -> "dataType",
+        "ENTREZID" -> "entrezid",
+        "ENSEMBL" -> "ensemblid",
+        "SYMBOL" -> "symbol",
+        "GENENAME" -> "name",
+        "GENEFAMILY" -> "geneFamily"
+        )
+
+    /**
+     * geneFeatures contains the mapping between the input gene annotations file
+     * and the features in the model.
+     * This function parses this part of the config and falls back to the above if
+     * `geneFeatures` is not present in the config.
+     */
+    def paramGeneFeatures(config: Config):Map[String, String] = {
+      Try(config.getObject("geneFeatures")).toOption
+          .map(_.unwrapped.asScala.toMap.map{case (k,v) => (k.toString, v.toString)})
+          .getOrElse(defaultDict)
+    }
+
   }
 
   object Variables {
     val ZHANG = Set("zhang", "similarity", "Zhang", "Similarity")
     val PWID = Set("id", "pwid")
-    val JNJS = Set("jnjs", "Jnjs")
+    val JNJS = Set("jnjs", "Jnjs", "cid")
     val JNJB = Set("jnjb", "Jnjb")
     val SMILES = Set("Smiles", "smiles", "SMILES")
     val INCHIKEY = Set("inchikey", "Inchikey")
@@ -240,6 +266,6 @@ object Common extends Serializable {
     val YEAR = Set("year", "Year")
     val TARGETS = Set("targets", "knownTargets", "Targets")
     val SIGNIFICANTGENES = Set("significantGenes")
-
+    val TIMES = Set("time", "Time")
   }
 }
