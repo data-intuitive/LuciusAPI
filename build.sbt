@@ -1,15 +1,17 @@
 name := "LuciusAPI"
 
-version := "3.3.0"
+version := "3.3.2"
 
 scalaVersion := "2.11.12"
 
 resolvers += "Job Server Bintray" at "https://dl.bintray.com/spark-jobserver/maven"
 
+resolvers += "Local Ivy" at "file://Users/toni/.ivy2/local"
+
 resolvers += Resolver.githubPackages("data-intuitive")
 
 libraryDependencies ++= Seq(
-  "com.data-intuitive" %% "luciuscore"        % "3.3.0",
+  "com.data-intuitive" %% "luciuscore"        % "3.3.2",
   "spark.jobserver"    %% "job-server-api"    % "0.8.0"      % "provided",
   "spark.jobserver"    %% "job-server-extras" % "0.8.0"      % "provided",
   "org.scalactic"      %% "scalactic"         % "3.0.7"      % "test"    ,
