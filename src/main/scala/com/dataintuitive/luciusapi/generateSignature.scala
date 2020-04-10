@@ -58,7 +58,7 @@ object generateSignature extends SparkSessionJob with NamedObjectSupport {
 
     // Start with query compound and retrieve indices
     val selection =
-      db.filter(x => x.pwid.exists(elem => samples.toSet.contains(elem)))
+      db.filter(x => x.id.exists(elem => samples.toSet.contains(elem)))
         .collect
         .map(x => (x.sampleAnnotations.t.get, x.sampleAnnotations.p.get))
     val valueVector = TransformationFunctions.aggregateStats(selection, 0.05)

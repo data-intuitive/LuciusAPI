@@ -86,7 +86,7 @@ object CompoundToSamplesFunctions extends SessionFunctions {
 
     val result =
       db.filter { sample =>
-          sample.compoundAnnotations.compound.jnjs.exists(isMatch(_, compoundQuery))
+          sample.compoundAnnotations.compound.id.exists(isMatch(_, compoundQuery))
         }
         .collect
         .map(entry => extractFeatures(entry, features))

@@ -58,7 +58,7 @@ object BinnedZhangZoomFunctions extends Functions {
         .filter{case (((z,record), i), j) =>
           inBin2D((j,z), (x,y), (binsX, binsY), maxIdx)
         }
-        .map{case (((z,record), i), j) => (j, z, i, record.pwid.getOrElse(""))}
+        .map{case (((z,record), i), j) => (j, z, i, record.id.getOrElse(""))}
 
     val result = annotatedSimilarity.collect
 

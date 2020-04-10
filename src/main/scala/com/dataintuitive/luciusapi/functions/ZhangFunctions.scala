@@ -56,11 +56,11 @@ object ZhangFunctions extends Functions {
         .zipWithIndex
         .sortBy{case ((z,x), i) => -z}
         .zipWithIndex
-        .map{case (((z,x), i), j) => (j, z, i, x.pwid.getOrElse(""))}
+        .map{case (((z,x), i), j) => (j, z, i, x.id.getOrElse(""))}
     else
       zhangAdded
         .zipWithIndex
-        .map{case ((z,x), i) => (i, z, i, x.pwid.getOrElse(""))}
+        .map{case ((z,x), i) => (i, z, i, x.id.getOrElse(""))}
 
     val result = annotatedSimilarity.collect
 

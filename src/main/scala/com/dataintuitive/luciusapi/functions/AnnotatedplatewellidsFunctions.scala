@@ -112,7 +112,7 @@ object AnnotatedplatewellidsFunctions extends SessionFunctions {
     val filteredDb =
       if (pwidsSpecified)
         db.filter(sample =>
-          pwidsQuery.map(pwid => sample.pwid.exists(_.matches(pwid))).reduce(_ || _))
+          pwidsQuery.map(pwid => sample.id.exists(_.matches(pwid))).reduce(_ || _))
       else
         db
 
