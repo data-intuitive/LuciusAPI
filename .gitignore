@@ -28,3 +28,4 @@ scripts/
 .bloop/
 project/metals.sbt
 jars/
+local
