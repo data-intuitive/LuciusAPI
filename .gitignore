@@ -27,3 +27,4 @@ scripts/
 .metals/
 .bloop/
 project/metals.sbt
+jars/
