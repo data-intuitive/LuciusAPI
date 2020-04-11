@@ -47,6 +47,8 @@ fi
 
 JAR="LuciusAPI-assembly-$VERSION.jar"
 URI="https://github.com/data-intuitive/LuciusAPI/releases/download/v$VERSION/$JAR"
+# Makes sure a trailing slash is present on the CACHE path
+CACHE=`echo -ne $CACHE | sed 's;/*$;/;'`
 TARGET="$CACHE$JAR"
 
 echo "Fetching assembly jar for v$VERSION..."
