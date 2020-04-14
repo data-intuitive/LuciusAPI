@@ -1,11 +1,13 @@
 #!/bin/bash
 
+red=`tput setaf 1`
+green=`tput setaf 2`
+blue=`tput setaf 4`
+reset=`tput sgr0`
+
 # Some useful directories
 DIR=$(dirname "$0")
 BASE="$DIR/.."
-# CONFIG=$BASE/config
-
-echo ""
 
 show_usage() {
   echo
@@ -14,8 +16,11 @@ show_usage() {
   echo "  -s   URL of jobserver"
   echo "  -c   Config file"
   echo "  -j   directory for local jar cache (default = ./)"
+  echo "  --dry-run"
   echo
 }
+
+PRECMD=""
 
 POSITIONAL=()
 while [[ $# -gt 0 ]]
@@ -41,6 +46,11 @@ case $key in
     -j|--jar)
     CACHE="$2"
     shift
+    shift
+    ;;
+    --dry-run)
+    DRYRUN=1
+    PRECMD="echo "
     shift
     ;;
     *)    # unknown option
@@ -109,12 +119,19 @@ echo "  jobserver: $JOBSERVER"
 echo "  jar:       $JAR"
 echo "  jarpath:   $TARGET"
 echo "  context:   $APPLC"
+echo "  endpoint:  $jobserver"
 echo
-
-curl -X DELETE "$jobserver/contexts/$APPLC"
-curl --data-binary "@$TARGET" "$jobserver/jars/$APPLC"
-curl -d '' \
-     $jobserver"/contexts/$APPLC?num-cpu-cores=2&memory-per-node=1g&context-factory=spark.jobserver.context.SessionContextFactory"
-curl --data-binary "@$BASE/$INIT_CONF" \
+echo "Deleting previous context...${green}"
+$PRECMD curl -X DELETE "$jobserver/contexts/$APPLC"
+echo
+echo "${reset}Uploading assembly jar...${green}"
+$PRECMD curl -H 'Content-Type: application/java-archive' --data-binary "@$TARGET" "$jobserver/binaries/$APPLC"
+echo
+echo "${reset}Starting new context...${green}"
+$PRECMD curl -d '' \
+     $jobserver"/contexts/$APPLC?num-cpu-cores=4&memory-per-node=4g&context-factory=spark.jobserver.context.SessionContextFactory"
+echo
+echo "${reset}Initializing API...${green}"
+$PRECMD curl --data-binary "@$BASE/$INIT_CONF" \
      "$jobserver/jobs?context=$APPLC&appName=$APPLC&classPath=$CP.initialize"
-
+echo "${reset}"
