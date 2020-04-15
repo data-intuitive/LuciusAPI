@@ -266,6 +266,6 @@ object Common extends Serializable {
     val YEAR = Set("year", "Year")
     val TARGETS = Set("targets", "knownTargets", "Targets")
     val SIGNIFICANTGENES = Set("significantGenes")
-    val TIMES = Set("time", "Time")
+    val TIME = Set("time", "Time")
   }
 }
