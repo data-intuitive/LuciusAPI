@@ -24,13 +24,13 @@ object TargetToCompoundsFunctions extends SessionFunctions {
 
   def extractFeatures(r:CompoundAnnotations, features:List[String]) = features.map{ 
     _ match {
-      case x if JNJS contains x => safeJnjsLens.get(r)
-      case x if JNJB contains x => safeJnjbLens.get(r)
-      case x if SMILES contains x => safeSmilesLens(r)
-      case x if INCHIKEY contains x => safeInchikeyLens.get(r)
-      case x if COMPOUNDNAME contains x => safeNameLens.get(r)
-      case x if TYPE contains x => safeCtypeLens.get(r)
-      case x if TARGETS contains x => safeKnownTargetsLens.get(r)
+      case x if COMPOUND_ID contains x       => safeJnjsLens.get(r)
+      case x if JNJB contains x              => safeJnjbLens.get(r)
+      case x if COMPOUND_SMILES contains x   => safeSmilesLens(r)
+      case x if COMPOUND_INCHIKEY contains x => safeInchikeyLens.get(r)
+      case x if COMPOUND_NAME contains x     => safeNameLens.get(r)
+      case x if COMPOUND_TYPE contains x     => safeCtypeLens.get(r)
+      case x if COMPOUND_TARGETS contains x  => safeKnownTargetsLens.get(r)
       case _ => "Feature not found"
   }}
 
@@ -59,7 +59,15 @@ object TargetToCompoundsFunctions extends SessionFunctions {
       targets.toList.map(target => query.toSet.contains(target)).foldLeft(false)(_||_)
     }
 
-    val features = List("jnjs", "jnjb", "smiles", "inchikey", "compoundname", "Type", "targets")
+    val features = List(
+      "compound_id",
+      "jnjb",
+      "compound_smiles",
+      "compound_inchikey",
+      "compound_name",
+      "compound_type",
+      "compound_targets"
+    )
 
     val resultRDD =
       db.rdd

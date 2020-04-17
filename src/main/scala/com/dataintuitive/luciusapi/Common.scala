@@ -250,22 +250,32 @@ object Common extends Serializable {
   }
 
   object Variables {
+
+    // Calculated
     val ZHANG = Set("zhang", "similarity", "Zhang", "Similarity")
-    val PWID = Set("id", "pwid")
-    val JNJS = Set("jnjs", "Jnjs", "cid")
-    val JNJB = Set("jnjb", "Jnjb")
-    val SMILES = Set("Smiles", "smiles", "SMILES")
-    val INCHIKEY = Set("inchikey", "Inchikey")
-    val COMPOUNDNAME = Set("compoundname", "CompoundName", "Compoundname", "name", "Name")
-    val TYPE = Set("Type", "type")
+
+    // Sample
+    val ID = Set("id", "pwid")
     val BATCH = Set("batch", "Batch")
     val PLATEID = Set("plateid", "PlateId")
     val WELL = Set("well", "Well")
     val PROTOCOLNAME = Set("protocolname", "cellline", "CellLine", "ProtocolName")
     val CONCENTRATION = Set("concentration", "Concentration")
     val YEAR = Set("year", "Year")
-    val TARGETS = Set("targets", "knownTargets", "Targets")
-    val SIGNIFICANTGENES = Set("significantGenes")
     val TIME = Set("time", "Time")
+
+    // Compound
+    val COMPOUND_ID = Set("jnjs", "Jnjs", "cid", "pid", "compound_id")
+    val JNJB = Set("jnjb", "Jnjb")
+    val COMPOUND_SMILES = Set("Smiles", "smiles", "SMILES", "compound_smiles")
+    val COMPOUND_INCHIKEY = Set("inchikey", "Inchikey", "compound_inchikey")
+    val COMPOUND_NAME = Set("compoundname", "CompoundName", "Compoundname", "name", "Name", "compound_name")
+    val COMPOUND_TYPE = Set("Type", "type", "compound_type")
+    val COMPOUND_TARGETS = Set("targets", "knownTargets", "Targets", "compound_targets")
+
+    // Derived
+    val SIGNIFICANTGENES = Set("significantGenes")
+
   }
+
 }

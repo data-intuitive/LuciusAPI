@@ -23,23 +23,27 @@ object CompoundToSamplesFunctions extends SessionFunctions {
 
   def extractFeatures(r: DbRow, features: List[String]) = features.map {
     _ match {
-      case x if PWID contains x          => safePwidLens.get(r)
-      case x if JNJS contains x          => safeJnjsLens.get(r)
-      case x if JNJB contains x          => safeJnjbLens.get(r)
-      case x if SMILES contains x        => safeSmilesLens.get(r)
-      case x if INCHIKEY contains x      => safeInchikeyLens.get(r)
-      case x if COMPOUNDNAME contains x  => safeNameLens.get(r)
-      case x if TYPE contains x          => safeCtypeLens.get(r)
+      // Sample
+      case x if ID contains x            => safeIdLens.get(r)
       case x if BATCH contains x         => safeBatchLens.get(r)
       case x if PLATEID contains x       => safePlateidLens.get(r)
       case x if WELL contains x          => safeWellLens.get(r)
       case x if PROTOCOLNAME contains x  => safeProtocolnameLens.get(r)
       case x if CONCENTRATION contains x => safeConcentrationLens.get(r)
       case x if YEAR contains x          => safeYearLens.get(r)
-      case x if TARGETS contains x       => safeKnownTargetsLens.get(r)
       case x if TIME contains x          => safeTimeLens.get(r)
-      case x if SIGNIFICANTGENES contains x => r.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0)
-      case _                             => "Feature not found"
+      // Compound
+      case x if COMPOUND_ID contains x        => safeCompoundIdLens.get(r)
+      case x if JNJB contains x               => safeJnjbLens.get(r)
+      case x if COMPOUND_SMILES contains x    => safeSmilesLens.get(r)
+      case x if COMPOUND_INCHIKEY contains x  => safeInchikeyLens.get(r)
+      case x if COMPOUND_NAME contains x      => safeNameLens.get(r)
+      case x if COMPOUND_TYPE contains x      => safeCtypeLens.get(r)
+      case x if COMPOUND_TARGETS contains x   => safeKnownTargetsLens.get(r)
+      // Derived
+      case x if SIGNIFICANTGENES contains x   => r.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0)
+      // Fallback
+      case _                                  => "Feature not found"
     }
   }
 
@@ -69,21 +73,21 @@ object CompoundToSamplesFunctions extends SessionFunctions {
 
     val features = List(
       "id",
-      "jnjs",
-      "jnjb",
-      "smiles",
-      "inchikey",
-      "compoundname",
-      "Type",
-      "targets",
       "batch",
       "plateid",
       "well",
       "protocolname",
       "concentration",
       "year",
-      "significantGenes",
-      "time"
+      "time",
+      "compound_id",
+      "jnjb",
+      "compound_smiles",
+      "inchikey",
+      "compound_name",
+      "compound_type",
+      "compound_targets",
+      "significantGenes"
     )
 
     val result =

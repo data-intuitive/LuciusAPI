@@ -33,17 +33,17 @@ object AnnotatedplatewellidsFunctions extends SessionFunctions {
   val helpMsg =
     s"""Returns a table with annotations about platewellids/samples, optionally with zhang score.
         |
-     | Input:
+        | Input:
         |
-     | - __`query`__: signature or gene list for calculating Zhang scores (optional, no score is calculated if not provided)
+        | - __`query`__: signature or gene list for calculating Zhang scores (optional, no score is calculated if not provided)
         |
-     | - __`features`__: list of features to return with (optional, all features are returned if not provided)
+        | - __`features`__: list of features to return with (optional, all features are returned if not provided)
         |
-     | - __`pwids`__: list of pwids to return annotations for (optional, some - see limit - pwids are returned)
+        | - __`pwids`__: list of pwids to return annotations for (optional, some - see limit - pwids are returned)
         |
-     | - __`limit`__: number of pwids to return if none are selected explicitly (optional, default is 10)
+        | - __`limit`__: number of pwids to return if none are selected explicitly (optional, default is 10)
         |
-     | - __`version`: "v1" or "v2" (optional, default is v2)
+        | - __`version`: "v1" or "v2" (optional, default is v2)
         |
      """.stripMargin
 
@@ -51,22 +51,27 @@ object AnnotatedplatewellidsFunctions extends SessionFunctions {
 
   def extractFeatures(r: ScoredDbRow, features: List[String]) = features.map {
     _ match {
+      // Calculated
       case x if ZHANG contains x         => scoreLens.get(r)
-      case x if PWID contains x          => safePwidLens.get(r)
-      case x if JNJS contains x          => safeJnjsLens.get(r)
-      case x if JNJB contains x          => safeJnjbLens.get(r)
-      case x if SMILES contains x        => safeSmilesLens.get(r)
-      case x if INCHIKEY contains x      => safeInchikeyLens.get(r)
-      case x if COMPOUNDNAME contains x  => safeNameLens.get(r)
-      case x if TYPE contains x          => safeCtypeLens.get(r)
+      // Sample
+      case x if ID contains x            => safeIdLens.get(r)
       case x if BATCH contains x         => safeBatchLens.get(r)
       case x if PLATEID contains x       => safePlateidLens.get(r)
       case x if WELL contains x          => safeWellLens.get(r)
       case x if PROTOCOLNAME contains x  => safeProtocolnameLens.get(r)
       case x if CONCENTRATION contains x => safeConcentrationLens.get(r)
       case x if YEAR contains x          => safeYearLens.get(r)
-      case x if TARGETS contains x       => safeKnownTargetsLens.get(r)
-      case _                             => "Feature not found"
+      case x if TIME contains x          => safeTimeLens.get(r)
+      // Compound
+      case x if COMPOUND_ID contains x        => safeCompoundIdLens.get(r)
+      case x if JNJB contains x               => safeJnjbLens.get(r)
+      case x if COMPOUND_SMILES contains x    => safeSmilesLens.get(r)
+      case x if COMPOUND_INCHIKEY contains x  => safeInchikeyLens.get(r)
+      case x if COMPOUND_NAME contains x      => safeNameLens.get(r)
+      case x if COMPOUND_TYPE contains x      => safeCtypeLens.get(r)
+      case x if COMPOUND_TARGETS contains x   => safeKnownTargetsLens.get(r)
+      // fallback
+      case _                                  => "Feature not found"
     }
   }
 
