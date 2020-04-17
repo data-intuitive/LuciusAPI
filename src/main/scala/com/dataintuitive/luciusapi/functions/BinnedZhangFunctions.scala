@@ -4,6 +4,7 @@ import com.dataintuitive.luciusapi.binning.BinningFunctions._
 
 import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.signatures._
+import com.dataintuitive.luciuscore.Filter
 import com.dataintuitive.luciuscore.Model.DbRow
 import com.dataintuitive.luciuscore.TransformationFunctions._
 import com.dataintuitive.luciuscore.ZhangScoreFunctions._
@@ -49,17 +50,19 @@ object BinnedZhangFunctions extends SessionFunctions {
     // Filters
     val filterConcentrationSpecified = filters.getOrElse("concentration", List()) != List()
     def concentrationFilter(sample: DbRow): Boolean =
-      if (filterConcentrationSpecified)
-        filters("concentration").toSet
-          .contains(sample.sampleAnnotations.sample.concentration.getOrElse("NA"))
+      if (filterConcentrationSpecified) {
+        val queries = filters("concentration").map(f => Filter("transformed_concentration", f))
+        sample.filters.isMatch(queries)
+      }
       else // return all records
         true
 
     val filterProtocolSpecified = filters.getOrElse("protocol", List()) != List()
     def protocolFilter(sample: DbRow): Boolean =
-      if (filterProtocolSpecified)
-        filters("protocol").toSet
-          .contains(sample.sampleAnnotations.sample.protocolname.getOrElse("NA"))
+      if (filterProtocolSpecified) {
+        val queries = filters("protocol").map(f => Filter("transformed_protocol", f))
+        sample.filters.isMatch(queries)
+      }
       else
         true
 
