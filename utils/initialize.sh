@@ -135,3 +135,4 @@ echo "${reset}Initializing API...${green}"
 $PRECMD curl --data-binary "@$BASE/$INIT_CONF" \
      "$jobserver/jobs?context=$APPLC&appName=$APPLC&classPath=$CP.initialize"
 echo "${reset}"
+
