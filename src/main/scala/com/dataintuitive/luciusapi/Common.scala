@@ -143,13 +143,25 @@ object Common extends Serializable {
       Try(config.getStringList("filter.type")).map(_.asScala.toList).getOrElse(default)
     }
 
-    def optParamFilters(config: Config): Map[String, List[String]] = {
-      Map(
-        "concentration" -> optParamFilterConcentration(config),
-        "type" -> optParamFilterType(config),
-        "protocol" -> optParamFilterProtocol(config)
-      )
-    }
+    /**
+     * Parse a filter object with optional filters
+     *
+     * If the filter key is not present, return Map()
+     *
+     * If the filter key is present, we expect a form:
+     *   filterKey: [ ... ]
+     *
+     * If filterKey exists, but the value can not be cast to `List[String]`, and the key is filtered out.
+     */
+    def optParamFilters(config: Config): Map[String, List[String]] =
+        Try{
+            val keys = config.getObject("filter")
+                .unwrapped.asScala.toMap.map(_._1)
+
+            val lists = keys.map(key => s"filter.$key").flatMap(x => Try(config.getStringList(x).asScala.toList).toOption)
+
+            (keys zip lists).toMap
+        }.toOption.getOrElse(Map())
 
     def validVersion(config: Config): Boolean Or One[ValidationProblem] = {
       if (VERSIONS contains optParamVersion(config)) Good(true)

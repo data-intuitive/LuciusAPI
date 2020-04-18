@@ -48,30 +48,23 @@ object BinnedZhangFunctions extends SessionFunctions {
     val signature = new SymbolSignature(rawSignature)
 
     // Filters
-    val filterConcentrationSpecified = filters.getOrElse("concentration", List()) != List()
-    def concentrationFilter(sample: DbRow): Boolean =
-      if (filterConcentrationSpecified) {
-        val queries = filters("concentration").map(f => Filter("transformed_concentration", f))
-        sample.filters.isMatch(queries)
-      }
-      else // return all records
-        true
+    // Map() means no filter is set
+    val filtersSet = (filters.size > 0)
 
-    val filterProtocolSpecified = filters.getOrElse("protocol", List()) != List()
-    def protocolFilter(sample: DbRow): Boolean =
-      if (filterProtocolSpecified) {
-        val queries = filters("protocol").map(f => Filter("transformed_protocol", f))
-        sample.filters.isMatch(queries)
+    // Turn the filter query into a Seq[Filter]
+    val transformedFilters =
+      filters
+        .flatMap{ case(filterKey, values) => values.map(value => Filter("transformed_" + filterKey, value)) }
+        .toSeq
+
+    // The effective filtering, conditional
+    def applyFilters(sample:DbRow):Boolean = {
+      if (filtersSet) {
+        sample.filters.isMatch(transformedFilters)
       }
       else
         true
-
-    val filterTypeSpecified = filters.getOrElse("type", List()) != List()
-    def typeFilter(sample: DbRow): Boolean =
-      if (filterTypeSpecified)
-        filters("type").toSet.contains(sample.compoundAnnotations.compound.ctype.getOrElse("NA"))
-      else
-        true
+    }
 
     val vLength = db.first.sampleAnnotations.t.get.length
     val query = signature.toIndexSignature.toOrderedRankVector(vLength)
@@ -88,9 +81,8 @@ object BinnedZhangFunctions extends SessionFunctions {
     // Add Zhang score if signature is present
     // Filter as soon as possible
     val zhangAdded: RDD[(Double, DbRow)] =
-      db.filter(concentrationFilter)
-        .filter(protocolFilter)
-        .filter(typeFilter)
+      db
+        .filter(applyFilters _)
         .flatMap { updateZhang(_, query) }
 
     val zhangStripped = zhangAdded.map(_._1)
