@@ -285,6 +285,9 @@ object Common extends Serializable {
     val COMPOUND_TYPE = Set("Type", "type", "compound_type")
     val COMPOUND_TARGETS = Set("targets", "knownTargets", "Targets", "compound_targets")
 
+    // Filters
+    val FILTERS = Set("filters", "Filters", "filter", "filters")
+
     // Derived
     val SIGNIFICANTGENES = Set("significantGenes")
 

@@ -3,6 +3,7 @@ package com.dataintuitive.luciusapi.functions
 import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.signatures._
 import com.dataintuitive.luciuscore.Filter
+import com.dataintuitive.luciuscore.Filters
 import com.dataintuitive.luciuscore.Model._
 import com.dataintuitive.luciuscore.TransformationFunctions._
 import com.dataintuitive.luciuscore.ZhangScoreFunctions._
@@ -33,6 +34,8 @@ object TopTableFunctions extends SessionFunctions {
 
   import com.dataintuitive.luciuscore.lenses.ScoredDbRowLenses._
 
+  import scalaz.Lens
+
   def extractFeatures(r: ScoredDbRow, features: List[String]) = features.map {
     _ match {
       // Calculated
@@ -54,6 +57,8 @@ object TopTableFunctions extends SessionFunctions {
       case x if COMPOUND_NAME contains x      => safeNameLens.get(r)
       case x if COMPOUND_TYPE contains x      => safeCtypeLens.get(r)
       case x if COMPOUND_TARGETS contains x   => safeKnownTargetsLens.get(r)
+      // Filters
+      case x if FILTERS contains x            => filtersLens.get(r)
       // fallback
       case _                                  => "Feature not found"
     }
@@ -150,7 +155,8 @@ object TopTableFunctions extends SessionFunctions {
            "compound_inchikey",
            "compound_name",
            "compound_type",
-           "compound_targets"
+           "compound_targets",
+           "filters"
        )
     }
 
