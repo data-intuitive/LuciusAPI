@@ -11,7 +11,7 @@ resolvers += "Local Ivy" at "file://Users/toni/.ivy2/local"
 resolvers += Resolver.githubPackages("data-intuitive")
 
 libraryDependencies ++= Seq(
-  "com.data-intuitive" %% "luciuscore"        % "3.3.3-SNAPSHOT",
+  "com.data-intuitive" %% "luciuscore"        % "3.3.3",
   "spark.jobserver"    %% "job-server-api"    % "0.8.0"      % "provided",
   "spark.jobserver"    %% "job-server-extras" % "0.8.0"      % "provided",
   "org.scalactic"      %% "scalactic"         % "3.0.7"      % "test"    ,
