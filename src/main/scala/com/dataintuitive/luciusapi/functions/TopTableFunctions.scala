@@ -58,7 +58,7 @@ object TopTableFunctions extends SessionFunctions {
       case x if COMPOUND_TYPE contains x      => safeCtypeLens.get(r)
       case x if COMPOUND_TARGETS contains x   => safeKnownTargetsLens.get(r)
       // Filters
-      case x if FILTERS contains x            => filtersLens.get(r)
+      case x if FILTERS contains x            => filtersSeqLens.get(r)
       // fallback
       case _                                  => "Feature not found"
     }

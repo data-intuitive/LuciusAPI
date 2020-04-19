@@ -2,7 +2,7 @@ package com.dataintuitive.luciusapi
 
 import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.Model.OldDbRow
+import com.dataintuitive.luciuscore.OldModel.OldDbRow
 import com.dataintuitive.luciuscore.io.GenesIO._
 import com.dataintuitive.luciuscore.io.IoFunctions._
 import com.typesafe.config.Config
@@ -109,6 +109,9 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     }
     val db = dbRaw.repartition(data.partitions)
 
+    println("Run Initialize, first entry:")
+    println(db.head)
+
     val dbNamedDataset = NamedDataSet[DbRow](db, forceComputation = true, storageLevel = data.storageLevel)
 
     runtime.namedObjects.update("db", dbNamedDataset)
@@ -117,6 +120,8 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
       FlatDbRow(
         row.id.getOrElse("NA"),
         row.sampleAnnotations.sample.getProtocolname,
+        row.sampleAnnotations.sample.getConcentration,
+        row.compoundAnnotations.compound.getType,
         row.compoundAnnotations.compound.getJnjs,
         row.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0
       )

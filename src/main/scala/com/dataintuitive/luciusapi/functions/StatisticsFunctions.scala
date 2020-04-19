@@ -29,56 +29,84 @@ object StatisticsFunctions extends SessionFunctions {
 
     val compounds = Map(
       "total" -> flatDb
-        .filter($"protocolname" !== "")
-        .select($"jnjs")
+        .filter($"protocol" !== "")
+        .select($"compoundId")
         .distinct
         .count,
-      "mcf7" -> flatDb
-        .filter($"protocolname" === "MCF7")
-        .select($"jnjs")
+      "sample" -> flatDb
+        .filter($"protocol" !== "")
+        .select($"compoundId")
         .distinct
-        .count,
-       "pbmc" -> flatDb
-        .filter($"protocolname" === "PBMC")
-        .select($"jnjs")
-        .distinct
-        .count
+        .take(10)
      )
 
     val samples = Map(
       "total" -> flatDb
-        .filter($"protocolname" !== "")
-        .select($"pwid")
+        .filter($"protocol" !== "")
+        .select($"id")
         .distinct
         .count,
-      "mcf7" -> flatDb
-        .filter($"protocolname" === "MCF7")
-        .select($"pwid")
+      "sample" -> flatDb
+        .filter($"protocol" !== "")
+        .select($"id")
         .distinct
-        .count,
-      "pbmc" -> flatDb
-        .filter($"protocolname" === "PBMC")
-        .select($"pwid")
-        .distinct
-        .count
+        .take(10)
     )
 
     val informative = Map(
       "total" -> flatDb
-        .filter($"protocolname" !== "")
-        .filter($"informative")
-        .count,
-      "mcf7" -> flatDb
-        .filter($"protocolname" === "MCF7")
-        .filter($"informative")
-        .count,
-      "pbmc" -> flatDb
-        .filter($"protocolname"=== "PBMC")
+        .filter($"protocol" !== "")
         .filter($"informative")
         .count
     )
 
-    Map("samples" -> samples, "compounds" -> compounds, "informative" -> informative)
+    val concentrations = Map(
+      "total" -> flatDb
+        .filter($"concentration" !== "")
+        .select($"concentration")
+        .distinct
+        .count,
+      "sample" -> flatDb
+        .filter($"concentration" !== "")
+        .select($"concentration")
+        .distinct
+        .take(10)
+    )
+
+    val protocols = Map(
+      "total" -> flatDb
+        .filter($"protocol" !== "")
+        .select($"protocol")
+        .distinct
+        .count,
+      "sample" -> flatDb
+        .filter($"protocol" !== "")
+        .select($"protocol")
+        .distinct
+        .take(10)
+    )
+
+    val types = Map(
+      "total" -> flatDb
+        .filter($"compoundType" !== "")
+        .select($"compoundType")
+        .distinct
+        .count,
+      "sample" -> flatDb
+        .filter($"compoundType" !== "")
+        .select($"compoundType")
+        .distinct
+        .take(10)
+    )
+
+    Map(
+      "samples" -> samples,
+      "compounds" -> compounds,
+      "informative" -> informative,
+      "protocols" -> protocols,
+      "types" -> types,
+      "concentrations" -> concentrations
+    )
   }
 
 //   def statistics = result _
