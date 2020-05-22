@@ -2,10 +2,12 @@ package com.dataintuitive.luciusapi.functions
 
 import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.signatures._
+import com.dataintuitive.luciuscore.{Filter, QFilter, FilterFunctions}
 import com.dataintuitive.luciuscore.Model.DbRow
 import com.dataintuitive.luciuscore.TransformationFunctions._
 import com.dataintuitive.luciuscore.ZhangScoreFunctions._
 import com.dataintuitive.luciuscore.DbFunctions._
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
@@ -14,13 +16,15 @@ import scala.collection.immutable.Map
 
 object CorrelationFunctions extends SessionFunctions {
 
+  // import com.dataintuitive.luciusapi.Common.Filter
+
   case class JobData(db: Dataset[DbRow],
                      genesDB: GenesDB,
                      version: String,
                      signatureQuery1: Array[String],
                      signatureQuery2: Array[String],
                      bins: Int,
-                     filters: Map[String, List[String]])
+                     filters: Seq[(String, Seq[String])])
 
   type JobOutput = Any // Seq[Map[String, Any]]
 
@@ -39,35 +43,11 @@ object CorrelationFunctions extends SessionFunctions {
     val rawSignature1 = data.signatureQuery1
     val rawSignature2 = data.signatureQuery2
     val bins = data.bins
-    val filters = data.filters
+    val qfilters = data.filters.map{ case(key,values) => QFilter(key, values) }
 
     // TODO: Make sure we continue with all symbols, or just make the job invalid when it isn't!
     val signature1 = new SymbolSignature(rawSignature1)
     val signature2 = new SymbolSignature(rawSignature2)
-
-    // Filters
-    val filterConcentrationSpecified = filters.getOrElse("concentration", List()) != List()
-    def concentrationFilter(sample: DbRow): Boolean =
-      if (filterConcentrationSpecified)
-        filters("concentration").toSet
-          .contains(sample.sampleAnnotations.sample.concentration.getOrElse("NA"))
-      else // return all records
-        true
-
-    val filterProtocolSpecified = filters.getOrElse("protocol", List()) != List()
-    def protocolFilter(sample: DbRow): Boolean =
-      if (filterProtocolSpecified)
-        filters("protocol").toSet
-          .contains(sample.sampleAnnotations.sample.protocolname.getOrElse("NA"))
-      else
-        true
-
-    val filterTypeSpecified = filters.getOrElse("type", List()) != List()
-    def typeFilter(sample: DbRow): Boolean =
-      if (filterTypeSpecified)
-        filters("type").toSet.contains(sample.compoundAnnotations.compound.ctype.getOrElse("NA"))
-      else
-        true
 
     val iSignature1 = signature1.toIndexSignature
     val iSignature2 = signature2.toIndexSignature
@@ -89,9 +69,8 @@ object CorrelationFunctions extends SessionFunctions {
     // Add Zhang score if signature is present
     // Filter as soon as possible
     val zhangScored: RDD[(DbRow, Seq[Double])] =
-      db.filter(concentrationFilter)
-        .filter(protocolFilter)
-        .filter(typeFilter)
+      db
+        .filter(row => FilterFunctions.isMatch(qfilters, row.filters))
         .flatMap { row => queryDbRow(row, queries:_*) }
 
     import com.dataintuitive.luciusapi.binning.BinningFunctionsBis._

@@ -109,9 +109,6 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     }
     val db = dbRaw.repartition(data.partitions)
 
-    println("Run Initialize, first entry:")
-    println(db.head)
-
     val dbNamedDataset = NamedDataSet[DbRow](db, forceComputation = true, storageLevel = data.storageLevel)
 
     runtime.namedObjects.update("db", dbNamedDataset)

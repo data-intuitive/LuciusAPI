@@ -26,7 +26,7 @@ import org.apache.spark.sql.Dataset
 object topTable extends SparkSessionJob with NamedObjectSupport {
 
   type JobData = functions.TopTableFunctions.JobData
-  type JobOutput = collection.Map[String, Any]
+  type JobOutput = Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
                         runtime: JobEnvironment,

@@ -5,6 +5,8 @@ import com.dataintuitive.luciusapi.binning.BinningFunctions._
 import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.signatures._
 import com.dataintuitive.luciuscore.Model.DbRow
+// import com.dataintuitive.luciuscore.Filter
+// import com.dataintuitive.luciuscore.Filters
 import com.dataintuitive.luciuscore.TransformationFunctions._
 import com.dataintuitive.luciuscore.ZhangScoreFunctions._
 import org.apache.spark.rdd.RDD
@@ -15,13 +17,15 @@ import scala.collection.immutable.Map
 
 object HistogramFunctions extends SessionFunctions {
 
+  // import com.dataintuitive.luciusapi.Common.Filter
+
   case class JobData(db: Dataset[DbRow],
                      gene: GenesDB,
                      version: String,
                      signatureQuery: List[String],
                      featuresQuery: List[String],
                      bins: Int,
-                     filters: Map[String, List[String]])
+                     filters: Seq[(String, Seq[String])])
 
   type JobOutput = Array[Map[String, BigDecimal]]
 
@@ -37,8 +41,10 @@ object HistogramFunctions extends SessionFunctions {
 
     import sparkSession.implicits._
 
-    val JobData(db, genesDB, version, signatureQuery, featuresQuery, nrBins, filters) = data
+    val JobData(db, genesDB, version, signatureQuery, featuresQuery, nrBins, filters_) = data
     implicit val genes = genesDB
+
+    val filters:Map[String, List[String]] = Map()
 
     val signatureSpecified = !(signatureQuery.headOption.getOrElse(".*") == ".*")
     val featuresSpecified = (featuresQuery.size >= 2)

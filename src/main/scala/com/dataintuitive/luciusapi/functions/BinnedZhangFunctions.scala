@@ -4,7 +4,7 @@ import com.dataintuitive.luciusapi.binning.BinningFunctions._
 
 import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.signatures._
-import com.dataintuitive.luciuscore.Filter
+import com.dataintuitive.luciuscore.{Filter, QFilter, FilterFunctions}
 import com.dataintuitive.luciuscore.Model.DbRow
 import com.dataintuitive.luciuscore.TransformationFunctions._
 import com.dataintuitive.luciuscore.ZhangScoreFunctions._
@@ -22,7 +22,7 @@ object BinnedZhangFunctions extends SessionFunctions {
                      signatureQuery: Array[String],
                      binsX: Int,
                      binsY: Int,
-                     filters: Map[String, List[String]])
+                     filters: Seq[(String, Seq[String])])
 
   type JobOutput = Seq[Map[String, Any]]
 
@@ -42,29 +42,10 @@ object BinnedZhangFunctions extends SessionFunctions {
     val rawSignature = data.signatureQuery
     val binsX = data.binsX
     val binsY = data.binsY
-    val filters = data.filters
+    val qfilters = data.filters.map{ case(key,values) => QFilter(key, values) }
 
     // TODO: Make sure we continue with all symbols, or just make the job invalid when it isn't!
     val signature = new SymbolSignature(rawSignature)
-
-    // Filters
-    // Map() means no filter is set
-    val filtersSet = (filters.size > 0)
-
-    // Turn the filter query into a Seq[Filter]
-    val transformedFilters =
-      filters
-        .flatMap{ case(filterKey, values) => values.map(value => Filter("transformed_" + filterKey, value)) }
-        .toSeq
-
-    // The effective filtering, conditional
-    def applyFilters(sample:DbRow):Boolean = {
-      if (filtersSet) {
-        sample.filters.isMatch(transformedFilters)
-      }
-      else
-        true
-    }
 
     val vLength = db.first.sampleAnnotations.t.get.length
     val query = signature.toIndexSignature.toOrderedRankVector(vLength)
@@ -82,7 +63,7 @@ object BinnedZhangFunctions extends SessionFunctions {
     // Filter as soon as possible
     val zhangAdded: RDD[(Double, DbRow)] =
       db
-        .filter(applyFilters _)
+        .filter(row => FilterFunctions.isMatch(qfilters, row.filters))
         .flatMap { updateZhang(_, query) }
 
     val zhangStripped = zhangAdded.map(_._1)

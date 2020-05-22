@@ -110,6 +110,8 @@ JAR="LuciusAPI-assembly-$VERSION.jar"
 CACHE=`echo -ne $CACHE | sed 's;/*$;/;'`
 TARGET="$CACHE$JAR"
 
+OPTIONS="spark.scheduler.mode=FAIR&spark.jobserver.context-creation-timeout=60&spark.memory.fraction=0.7&spark.dynamicAllocation.enabled=false&spark.executor.instances=6&spark.executor.cores=4&spark.executor.memory=4g&spark.yarn.executor.memoryOverhead=2g&spark.yarn.am.memory=4G&spark.driver.memory=4G"
+
 echo
 echo "Initializing $APP API..."
 echo ""
@@ -129,7 +131,7 @@ $PRECMD curl -H 'Content-Type: application/java-archive' --data-binary "@$TARGET
 echo
 echo "${reset}Starting new context...${green}"
 $PRECMD curl -d '' \
-     $jobserver"/contexts/$APPLC?num-cpu-cores=4&memory-per-node=4g&context-factory=spark.jobserver.context.SessionContextFactory"
+     $jobserver"/contexts/$APPLC?context-factory=spark.jobserver.context.SessionContextFactory&$OPTIONS"
 echo
 echo "${reset}Initializing API...${green}"
 $PRECMD curl --data-binary "@$BASE/$INIT_CONF" \

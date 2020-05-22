@@ -2,20 +2,19 @@ package com.dataintuitive.luciusapi.functions
 
 import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.signatures._
-import com.dataintuitive.luciuscore.Filter
-import com.dataintuitive.luciuscore.Filters
 import com.dataintuitive.luciuscore.Model._
 import com.dataintuitive.luciuscore.TransformationFunctions._
 import com.dataintuitive.luciuscore.ZhangScoreFunctions._
+import com.dataintuitive.luciuscore.{Filter, QFilter, FilterFunctions}
+
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
 
-import scala.collection.immutable.Map
-
 object TopTableFunctions extends SessionFunctions {
 
   import com.dataintuitive.luciusapi.Common.Variables._
+  import com.dataintuitive.luciuscore.lenses.ScoredDbRowLenses._
 
   case class JobData(db: Dataset[DbRow],
                      genes: GenesDB,
@@ -24,17 +23,14 @@ object TopTableFunctions extends SessionFunctions {
                      tail: Int,
                      signatureQuery: List[String],
                      featuresQuery: List[String],
-                     filters: Map[String, List[String]])
+                     filters: Seq[(String, Seq[String])])
 
   type JobOutput = Array[Map[String, Any]]
+  // type JobOutput = Seq[(String, String)]
 
   val helpMsg =
     s"""
      """.stripMargin
-
-  import com.dataintuitive.luciuscore.lenses.ScoredDbRowLenses._
-
-  import scalaz.Lens
 
   def extractFeatures(r: ScoredDbRow, features: List[String]) = features.map {
     _ match {
@@ -58,7 +54,7 @@ object TopTableFunctions extends SessionFunctions {
       case x if COMPOUND_TYPE contains x      => safeCtypeLens.get(r)
       case x if COMPOUND_TARGETS contains x   => safeKnownTargetsLens.get(r)
       // Filters
-      case x if FILTERS contains x            => filtersSeqLens.get(r)
+      case x if FILTERS contains x            => filtersMapLens.get(r).map(x => Map("key" -> x._1, "value" -> x._2)).toSeq
       // fallback
       case _                                  => "Feature not found"
     }
@@ -76,24 +72,7 @@ object TopTableFunctions extends SessionFunctions {
     val signatureSpecified = !(signatureQuery.headOption.getOrElse(".*") == ".*")
     val featuresSpecified = !(featuresQuery.headOption.getOrElse(".*") == ".*")
 
-    // Filters
-    // Map() means no filter is set
-    val filtersSet = (filters.size > 0)
-
-    // Turn the filter query into a Seq[Filter]
-    val transformedFilters =
-      filters
-        .flatMap{ case(filterKey, values) => values.map(value => Filter("transformed_" + filterKey, value)) }
-        .toSeq
-
-    // The effective filtering, conditional
-    def applyFilters(sample:DbRow):Boolean = {
-      if (filtersSet) {
-        sample.filters.isMatch(transformedFilters)
-      }
-      else
-        true
-    }
+    val qfilters = filters.map{ case(key,values) => QFilter(key, values) }
 
     // TODO: Make sure we continue with all symbols, or just make the job invalid when it isn't!
     val signature = new SymbolSignature(signatureQuery.toArray)
@@ -117,7 +96,7 @@ object TopTableFunctions extends SessionFunctions {
     // Filter as soon as possible
     val zhangAdded: RDD[(Double, DbRow)] =
       db.rdd
-        .filter(applyFilters _)
+        .filter(row => FilterFunctions.isMatch(qfilters, row.filters))
         .flatMap { updateZhang(_, query) }
 
     val topN =
@@ -171,7 +150,6 @@ object TopTableFunctions extends SessionFunctions {
           .map(entry => extractFeatures(entry, features))
 
     result.map(_.zip(features).map(_.swap).toMap)
-    // Array(transformedFilters)
 
   }
 
