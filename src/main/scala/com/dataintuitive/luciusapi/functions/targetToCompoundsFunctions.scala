@@ -22,11 +22,10 @@ object TargetToCompoundsFunctions extends SessionFunctions {
 
   import com.dataintuitive.luciuscore.lenses.CompoundAnnotationsLenses._
 
-  def extractFeatures(r:CompoundAnnotations, features:List[String]) = features.map{ 
+  def extractFeatures(r:CompoundAnnotations, features:List[String]) = features.map{
     _ match {
-      case x if COMPOUND_ID contains x       => safeJnjsLens.get(r)
-      case x if JNJB contains x              => safeJnjbLens.get(r)
-      case x if COMPOUND_SMILES contains x   => safeSmilesLens(r)
+      case x if COMPOUND_ID contains x       => safeIdLens.get(r)
+      case x if COMPOUND_SMILES contains x   => safeSmilesLens.get(r)
       case x if COMPOUND_INCHIKEY contains x => safeInchikeyLens.get(r)
       case x if COMPOUND_NAME contains x     => safeNameLens.get(r)
       case x if COMPOUND_TYPE contains x     => safeCtypeLens.get(r)
@@ -61,7 +60,6 @@ object TargetToCompoundsFunctions extends SessionFunctions {
 
     val features = List(
       "compound_id",
-      "jnjb",
       "compound_smiles",
       "compound_inchikey",
       "compound_name",
@@ -73,23 +71,25 @@ object TargetToCompoundsFunctions extends SessionFunctions {
       db.rdd
         .map(_.compoundAnnotations)
         .filter{compoundAnnotations =>
-          compoundAnnotations.knownTargets.map(isMatch(_, targetQuery)).getOrElse(false)  //.compound.jnjs.exists(isMatch(_, compoundQuery))
+          compoundAnnotations.knownTargets.map(isMatch(_, targetQuery)).getOrElse(false)
         }
-      .distinct
-      .sortBy(compoundAnnotations => compoundAnnotations.knownTargets.map(_.size).getOrElse(0))
+        .distinct
+        .sortBy(compoundAnnotations => compoundAnnotations.knownTargets.map(_.size).getOrElse(0))
 
     val limitOutput = (resultRDD.count > limit)
 
     // Should we limit the result set?
-    val result = 
-        limitOutput match {
-            case true  => resultRDD.take(limit)
-            case false => resultRDD.collect
-        }
+    val result =
+      limitOutput match {
+        case true  => resultRDD.take(limit)
+        case false => resultRDD.collect
+      }
+
+    // Array(Map( "test" -> targetQuery))
 
     result
-        .map(entry => extractFeatures(entry, features) )
-        .map(_.zip(features).map(_.swap).toMap)
+      .map(entry => extractFeatures(entry, features) )
+      .map(_.zip(features).map(_.swap).toMap)
 
   }
 
