@@ -2,6 +2,7 @@ package com.dataintuitive.luciusapi.functions
 
 import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.Model.DbRow
+import com.dataintuitive.luciuscore.lenses.DbRowLenses._
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.Dataset
 import org.apache.spark.sql.SparkSession
@@ -28,7 +29,7 @@ object CompoundsFunctions extends SessionFunctions {
 
   def info(data: JobData) = s"Result for compound query ${data.compoundQuery}"
 
-  def header(data: JobData) = "(jnjs, name)"
+  def header(data: JobData) = "(compound_id, name)"
 
   def result(data: JobData)(implicit sparkSession: SparkSession) = {
 
@@ -49,11 +50,11 @@ object CompoundsFunctions extends SessionFunctions {
 
     val resultRDD =
       db.rdd.filter { sample =>
-          (sample.compoundAnnotations.compound.id.exists(isMatch(_, compoundQuery))
-          || sample.compoundAnnotations.compound.name.exists(isMatch(_, compoundQuery)))
+          (compoundIdLens.get(sample).exists(isMatch(_, compoundQuery))
+          || nameLens.get(sample).exists(isMatch(_, compoundQuery)))
         }
         .map { sample =>
-          (sample.compoundAnnotations.compound.getJnjs, sample.compoundAnnotations.compound.getName)
+          (safeCompoundIdLens.get(sample), safeNameLens.get(sample))
         }
         .countByValue()
         .keys
@@ -61,12 +62,12 @@ object CompoundsFunctions extends SessionFunctions {
 
     val resultRDDasMap = resultRDD
       .map {
-        case (jnjs, name) =>
-          Map("jnjs" -> jnjs, "name" -> name)
+        case (id, name) =>
+          Map("compound_id" -> id, "name" -> name)
       }
 
     val resultRDDv1 = resultRDD
-      .map { case (jnjs, name) => (jnjs, name) }
+      .map { case (id, name) => (id, name) }
 
     val limitOutput = (resultRDD.length > limit)
 
