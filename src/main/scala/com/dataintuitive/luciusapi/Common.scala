@@ -98,6 +98,10 @@ object Common extends Serializable {
         .getOrElse(Bad(One(SingleProblem("Parameter sorted not provided or not boolean"))))
     }
 
+    def optPValue(config: Config, default: Double = 0.05): Double = {
+      Try(config.getString("pvalue").toDouble).getOrElse(default)
+    }
+
     def optParamBinsX(config: Config, default: Int = 20): Int = {
       Try(config.getString("binsX").toInt).getOrElse(default)
     }

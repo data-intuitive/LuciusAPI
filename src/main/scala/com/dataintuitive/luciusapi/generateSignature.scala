@@ -25,7 +25,7 @@ import org.apache.spark.sql.Dataset
 
 object generateSignature extends SparkSessionJob with NamedObjectSupport {
 
-  case class JobData(db: Dataset[DbRow], genesDB: GenesDB, version: String, samples: List[String])
+  case class JobData(db: Dataset[DbRow], genesDB: GenesDB, pValue:Double, version: String, samples: List[String])
 
   type JobOutput = Array[String]
 
@@ -35,13 +35,14 @@ object generateSignature extends SparkSessionJob with NamedObjectSupport {
 
     val db = getDB(runtime)
     val genes = getGenes(runtime)
+    val pValue = optPValue(config)
     val version = optParamVersion(config)
     val isValidVersion = validVersion(config)
     val samples = paramSamples(config)
 
     (isValidVersion zip
       withGood(db, genes, samples) {
-        JobData(_, _, version, _)
+        JobData(_, _, pValue, version, _)
       }).map(_._2)
 
   }
@@ -52,7 +53,7 @@ object generateSignature extends SparkSessionJob with NamedObjectSupport {
 
     implicit val thisSession = sparkSession
 
-    val JobData(db, genesDB, version, samples) = data
+    val JobData(db, genesDB, pValue, version, samples) = data
 
     implicit val genes = genesDB
 
@@ -61,7 +62,7 @@ object generateSignature extends SparkSessionJob with NamedObjectSupport {
       db.filter(x => x.id.exists(elem => samples.toSet.contains(elem)))
         .collect
         .map(x => (x.sampleAnnotations.t.get, x.sampleAnnotations.p.get))
-    val valueVector = TransformationFunctions.aggregateStats(selection, 0.05)
+    val valueVector = TransformationFunctions.aggregateStats(selection, pValue)
     val rankVector = TransformationFunctions.stats2RankVector((valueVector, Array()))
 
     val indexSignature: IndexSignature =
