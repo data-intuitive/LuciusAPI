@@ -5,8 +5,7 @@ import com.dataintuitive.luciusapi.binning.BinningFunctions._
 import com.dataintuitive.luciuscore.genes._
 import com.dataintuitive.luciuscore.signatures._
 import com.dataintuitive.luciuscore.Model.DbRow
-// import com.dataintuitive.luciuscore.Filter
-// import com.dataintuitive.luciuscore.Filters
+import com.dataintuitive.luciuscore.{Filter, QFilter, FilterFunctions}
 import com.dataintuitive.luciuscore.TransformationFunctions._
 import com.dataintuitive.luciuscore.ZhangScoreFunctions._
 import org.apache.spark.rdd.RDD
@@ -41,37 +40,13 @@ object HistogramFunctions extends SessionFunctions {
 
     import sparkSession.implicits._
 
-    val JobData(db, genesDB, version, signatureQuery, featuresQuery, nrBins, filters_) = data
+    val JobData(db, genesDB, version, signatureQuery, featuresQuery, nrBins, filters) = data
     implicit val genes = genesDB
 
-    val filters:Map[String, List[String]] = Map()
+    val qfilters = filters.map{ case(key,values) => QFilter(key, values) }
 
     val signatureSpecified = !(signatureQuery.headOption.getOrElse(".*") == ".*")
     val featuresSpecified = (featuresQuery.size >= 2)
-
-    // Filters
-    val filterConcentrationSpecified = filters.getOrElse("concentration", List()) != List()
-    def concentrationFilter(sample: DbRow): Boolean =
-      if (filterConcentrationSpecified)
-        filters("concentration").toSet
-          .contains(sample.sampleAnnotations.sample.concentration.getOrElse("NA"))
-      else // return all records
-        true
-
-    val filterProtocolSpecified = filters.getOrElse("protocol", List()) != List()
-    def protocolFilter(sample: DbRow): Boolean =
-      if (filterProtocolSpecified)
-        filters("protocol").toSet
-          .contains(sample.sampleAnnotations.sample.protocolname.getOrElse("NA"))
-      else
-        true
-
-    val filterTypeSpecified = filters.getOrElse("type", List()) != List()
-    def typeFilter(sample: DbRow): Boolean =
-      if (filterTypeSpecified)
-        filters("type").toSet.contains(sample.compoundAnnotations.compound.ctype.getOrElse("NA"))
-      else
-        true
 
     // TODO: Make sure we continue with all symbols, or just make the job invalid when it isn't!
     val signature = new SymbolSignature(signatureQuery.toArray)
@@ -93,9 +68,7 @@ object HistogramFunctions extends SessionFunctions {
     // filter asap
     val zhangAndFeaturesAddedStrippedSorted =
       db.rdd
-        .filter(concentrationFilter)
-        .filter(protocolFilter)
-        .filter(typeFilter)
+        .filter(row => FilterFunctions.isMatch(qfilters, row.filters))
         .flatMap {
           updateZhang(_, query)
         }
