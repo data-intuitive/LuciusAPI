@@ -45,13 +45,14 @@ object compoundToSamples extends SparkSessionJob with NamedObjectSupport {
     val db = getDB(runtime)
     val genes = getGenes(runtime)
     val limit = optParamLimit(config, 10)
+    val pValue = optPValue(config, 0.05)
     val version = optParamVersion(config)
     val isValidVersion = validVersion(config)
     val compoundQuery = paramCompounds(config)
 
     (isValidVersion zip
       withGood(db, genes, compoundQuery) {
-        JobData(_, _, version, _, limit)
+        JobData(_, _, pValue, version, _, limit)
       }).map(_._2)
 
   }

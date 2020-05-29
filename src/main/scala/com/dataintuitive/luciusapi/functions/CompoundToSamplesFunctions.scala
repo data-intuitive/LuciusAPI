@@ -13,6 +13,7 @@ object CompoundToSamplesFunctions extends SessionFunctions {
 
   case class JobData(db: Dataset[DbRow],
                      genesDB: GenesDB,
+                     pValue: Double,
                      version: String,
                      compounds: List[String],
                      limit: Int)
@@ -21,7 +22,7 @@ object CompoundToSamplesFunctions extends SessionFunctions {
 
   import com.dataintuitive.luciuscore.lenses.DbRowLenses._
 
-  def extractFeatures(r: DbRow, features: List[String]) = features.map {
+  def extractFeatures(r: DbRow, features: List[String], pValue:Double) = features.map {
     _ match {
       // Sample
       case x if ID contains x            => safeIdLens.get(r)
@@ -41,7 +42,7 @@ object CompoundToSamplesFunctions extends SessionFunctions {
       case x if COMPOUND_TYPE contains x      => safeCtypeLens.get(r)
       case x if COMPOUND_TARGETS contains x   => safeKnownTargetsLens.get(r)
       // Derived
-      case x if SIGNIFICANTGENES contains x   => r.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0)
+      case x if SIGNIFICANTGENES contains x   => r.sampleAnnotations.p.map(_.count(_ <= pValue)).getOrElse(0)
       // Fallback
       case _                                  => "Feature not found"
     }
@@ -61,7 +62,7 @@ object CompoundToSamplesFunctions extends SessionFunctions {
 
   def result(data: JobData)(implicit sparkSession: SparkSession) = {
 
-    val JobData(db, genesDB, version, compoundQuery, limit) = data
+    val JobData(db, genesDB, pValue, version, compoundQuery, limit) = data
     implicit val genes = genesDB
 
     // I could distinguish on version as well, but this makes more sense
@@ -95,7 +96,7 @@ object CompoundToSamplesFunctions extends SessionFunctions {
           sample.compoundAnnotations.compound.id.exists(isMatch(_, compoundQuery))
         }
         .collect
-        .map(entry => extractFeatures(entry, features))
+        .map(entry => extractFeatures(entry, features, pValue))
 
     result.map(_.zip(features).map(_.swap).toMap)
 
