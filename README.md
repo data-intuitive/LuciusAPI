@@ -33,32 +33,49 @@ If this step is working, you can proceed to the next one.
 
 ## Lucius API
 
-Let's assume you've started the docker container as described earlier.
+Let's assume you've started Spark Jobserver (in any way), then:
 
-Start by downloading the latest assembly jar and store it under `/tmp/api`:
+1. Clone the LuciusAPI repo
 
-```bash
-wget http://dl.bintray.com/tverbeiren/maven/com/data-intuitive/luciusapi_2.11/1.5.0/luciusapi_2.11-1.5.0-assembly.jar
-mv luciusapi_2.11-1.5.0-assembly.jar /tmp/api/
+2. Download the [latest assembly jar](https://github.com/data-intuitive/LuciusAPI/releases/tag/v3.3.7) and store it under `/tmp/api`:
+
+```sh
+mkdir jars
+cd jars
+wget https://github.com/data-intuitive/LuciusAPI/releases/download/v3.3.7/LuciusAPI-assembly-3.3.7.jar
 ```
 
 Now, in order to make life easy, some scripts are available. Two configuration files define the behavior of these scripts: `config/settings.sh` and `config/initialize-docker.conf`. Take a look at both to see what is going on. They are configured to work with the procedure described in this manual.
 
-Start Lucius API by running the initialiation script:
+Start Lucius API by running the initialization script:
 
 ```bash
-scripts/initialize.sh
+utils/initialize.sh \
+  -v 3.3.7 \
+  -s localhost:8090 \
+  -c pointer_to_config_file.conf \
+  -j jars
 ```
 
-Please note that the data needs to be present under `/tmp/api/data` for this to work. Looking at the configuration file, the following need to be available:
-
-- The preprocessed dataset, in binary Object Format.
-- The gene annotations file
-
-Example output of the initialization step:
+This assumes that config file is present. This is how such a config file could look like (for a locally available dataset):
 
 ```
+{
+  db.uri = "file:///.../results.parquet"
+  geneAnnotations = "file:///.../lm_gene_info.txt"
+  storageLevel = "MEMORY_ONLY_1"
+  partitions = 4
+  geneFeatures {
+    pr_gene_id = "probesetid"
+    pr_gene_symbol = "symbol"
+    pr_is_lm = "dataType"
+  }
+}
+```
 
+Please note that the data needs to be present: `results.parquet` and the target data `lm_gene_info.txt`.
+
+```
 Initializing LuciusAPI API...
 
 {
@@ -81,26 +98,6 @@ Initializing LuciusAPI API...
 ```
 
 If the data is not yet in preprocessed form, a preprocessing endpoint is available. The usage of this is explained later.
-
-We currently provide only one script. The other scripts will be made available once a public test dataset can be uploaded.
-
-```bash
-scripts/query-statistics.sh
-scripts/query-checkSignature.sh
-```
-
-The first scripts should result (depending on the dataset used) in output like this:
-
-```
-{
-  "jobId": "c35e8929-9d1e-4a9e-9953-e78816a5a1c9",
-  "result": {
-    "info": "General statistics about the data",
-    "header": ["statistic", "value"],
-    "data": [["samples", 1344], ["genes", 978], ["compounds", 739]]
-  }
-}%
-```
 
 # New Spark Jobserver API
 
