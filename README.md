@@ -37,7 +37,7 @@ Let's assume you've started Spark Jobserver (in any way), then:
 
 1. Clone the LuciusAPI repo
 
-2. Download the [latest assembly jar](https://github.com/data-intuitive/LuciusAPI/releases/tag/v3.3.7) and store it under `/tmp/api`:
+2. Download the [latest assembly jar](https://github.com/data-intuitive/LuciusAPI/releases/tag/v3.3.7) and store it under `jars` inside the LuciusAPI repo:
 
 ```sh
 mkdir jars
