@@ -1,6 +1,6 @@
 name := "LuciusAPI"
 
-version := "3.3.6"
+version := "4.0.0-SNAPSHOT"
 
 scalaVersion := "2.11.12"
 
@@ -11,13 +11,13 @@ resolvers += "Local Ivy" at "file://Users/toni/.ivy2/local"
 resolvers += Resolver.githubPackages("data-intuitive")
 
 libraryDependencies ++= Seq(
-  "com.data-intuitive" %% "luciuscore"        % "3.3.4",
-  "spark.jobserver"    %% "job-server-api"    % "0.8.0"      % "provided",
-  "spark.jobserver"    %% "job-server-extras" % "0.8.0"      % "provided",
+  "com.data-intuitive" %% "luciuscore"        % "4.0.0-SNAPSHOT",
+  "spark.jobserver"    %% "job-server-api"    % "0.10.0"     % "provided",
+  "spark.jobserver"    %% "job-server-extras" % "0.10.0"     % "provided",
   "org.scalactic"      %% "scalactic"         % "3.0.7"      % "test"    ,
   "org.scalatest"      %% "scalatest"         % "3.0.7"      % "test"    ,
-  "org.apache.spark"   %% "spark-core"        % "2.3.1"      % "provided",
-  "org.apache.spark"   %% "spark-sql"         % "2.3.1"      % "provided"
+  "org.apache.spark"   %% "spark-core"        % "2.4.7"      % "provided",
+  "org.apache.spark"   %% "spark-sql"         % "2.4.7"      % "provided"
   /* "org.scalaz"         %% "scalaz-core"       % "7.2.0" */
 )
 
