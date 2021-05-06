@@ -1,0 +1,35 @@
+name: Scala CI and Publish
+
+on:
+  push:
+    branches: [ master, develop ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    if: "!contains(github.event.head_commit.message, 'ci skip')"
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Scala
+      uses: olafurpg/setup-scala@v10
+    - name: Run tests on Ubuntu
+      if: startsWith(matrix.os, 'ubuntu')
+      run: sbt 'testOnly -- -l com.dataintuitive.tags.IOtag'
+  publish:
+    name: Publish package
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Scala
+      uses: olafurpg/setup-scala@v10
+    - name: Upload
+      run: sbt aetherDeploy
+      env:
+        GITHUB_TOKEN: ${{ secrets.PACKAGE_SECRET }}
