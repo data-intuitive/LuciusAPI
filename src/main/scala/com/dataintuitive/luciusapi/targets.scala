@@ -1,49 +1,45 @@
 package com.dataintuitive.luciusapi
 
-// Functions implementation and common code
-import functions.TargetsFunctions._
+import com.dataintuitive.luciuscore._
+import genes._
+import api._
+
 import Common.ParamHandlers._
 
-
-// LuciusCore
-import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.genes._
-
-// Jobserver
 import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
 import spark.jobserver._
 
-// Scala, Scalactic and Typesafe
 import scala.util.Try
 import org.scalactic._
 import Accumulation._
 import com.typesafe.config.Config
 
-// Spark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Dataset
 
-
 object targets extends SparkSessionJob with NamedObjectSupport {
 
-  type JobData = functions.TargetsFunctions.JobData
+  import Targets._
+
+  type JobData = Targets.JobData
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
                         runtime: JobEnvironment,
                         config: Config): JobData Or Every[ValidationProblem] = {
 
+    val version = validVersion(config)
     val db = getDB(runtime)
+    val flatDb = getFlatDB(runtime)
     val genes = getGenes(runtime)
+
     val targets = paramTargetQ(config)
     val limit = optParamLimit(config)
-    val version = optParamVersion(config)
-    val isValidVersion = validVersion(config)
 
-    (isValidVersion zip
-      withGood(db, genes, targets) {
-        JobData(_, _, version, _, limit)
-      }).map(_._2)
+    val cachedData = withGood(db, flatDb, genes) { CachedData(_, _, _) }
+    val specificData = withGood(targets) { SpecificData(_, limit) }
+
+    withGood(version, cachedData, specificData) { JobData(_, _, _) }
 
   }
 
@@ -56,7 +52,7 @@ object targets extends SparkSessionJob with NamedObjectSupport {
     data.version match {
       case "v2" =>
         Map(
-          "info" -> info(data),
+          "info" -> infoMsg,
           "header" -> header(data),
           "data" -> result(data)
         )

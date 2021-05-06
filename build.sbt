@@ -1,6 +1,6 @@
 name := "LuciusAPI"
 
-version := "4.0.0-SNAPSHOT"
+version in ThisBuild := "4.0.0-SNAPSHOT"
 
 scalaVersion := "2.11.12"
 
@@ -26,6 +26,16 @@ test in assembly := {}
 organization := "com.data-intuitive"
 licenses += ("Apache-2.0", url("https://www.apache.org/licenses/LICENSE-2.0.html"))
 
+// publish to github packages
+publishTo := Some("GitHub data-intuitive Apache Maven Packages" at "https://maven.pkg.github.com/data-intuitive/luciusapi")
+publishMavenStyle := true
+credentials += Credentials(
+  "GitHub Package Registry",
+  "maven.pkg.github.com",
+  "tverbeiren",
+  System.getenv("GITHUB_TOKEN")
+)
+
 // Publish assembly jar as well
 artifact in (Compile, assembly) := {
   val art = (artifact in (Compile, assembly)).value
@@ -34,7 +44,4 @@ artifact in (Compile, assembly) := {
 
 addArtifact(artifact in (Compile, assembly), assembly)
 
-githubOwner := "data-intuitive"
-githubRepository := "luciusapi"
-githubTokenSource := TokenSource.GitConfig("github.token")
-publishMavenStyle := true
+aetherPackageMain := assembly.value

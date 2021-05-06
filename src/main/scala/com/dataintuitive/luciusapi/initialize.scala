@@ -1,49 +1,30 @@
 package com.dataintuitive.luciusapi
 
-import com.dataintuitive.luciuscore.genes._
-import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.OldModel.OldDbRow
-import com.dataintuitive.luciuscore.io.GenesIO._
-import com.dataintuitive.luciuscore.io.IoFunctions._
-import com.typesafe.config.Config
+import com.dataintuitive.luciuscore._
+import model.v4._
+import genes._
+import api._
+import io.GenesIO._
 
 import Common.ParamHandlers._
+import com.dataintuitive.jobserver._
+import Common._
 
-import com.typesafe.config.Config
-import org.apache.spark.sql.SparkSession
-import spark.jobserver.SparkSessionJob
 import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
-import org.apache.spark.sql.Dataset
+import spark.jobserver.SparkSessionJob
+import spark.jobserver._
 
 import scala.util.Try
 import org.scalactic._
 import Accumulation._
+import com.typesafe.config.Config
+
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Dataset
 
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.storage.StorageLevel._
-import spark.jobserver._
 
-import Common._
-import com.dataintuitive.luciusapi.Model.FlatDbRow
-
-import com.dataintuitive.jobserver.NamedDataSet
-import com.dataintuitive.jobserver.DataSetPersister
-
-import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext
-
-object CoreFuncions {
-
-}
-/**
-  * Initialize the API by caching the database with sample-compound information
-  *
-  * We make a distinction between running within SparkJobserver and not.
-  * The difference is in the handling of named objects in-between api calls.
-  *
-  * - For Jobserver we use NamedObject support for both the RDD and the dictionary of genes.
-  * - For local, we use PersistentRDDs in combination with a new loading of the genes database at every call.
-  */
 object initialize extends SparkSessionJob with NamedObjectSupport {
 
   case class JobData(db: String,
@@ -104,25 +85,26 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     val parquet = sparkSession.read
       .parquet(data.db)
     val dbRaw = (parquet, data.dbVersion) match {
-      case (oldFormatParquet, "v1") => oldFormatParquet.as[OldDbRow].map(_.toDbRow)
-      case (newFormatParquet, _)    => newFormatParquet.as[DbRow]
+      // case (parquet, "v1") => parquet.as[OldDbRow].map(_.toDbRow)
+      // case (parquet, "v3") => parquet.as[DbRow]
+      case (parquet, _)  => parquet.as[Perturbation]
     }
     val db = dbRaw.repartition(data.partitions)
 
-    val dbNamedDataset = NamedDataSet[DbRow](db, forceComputation = true, storageLevel = data.storageLevel)
+    val dbNamedDataset = NamedDataSet[Perturbation](db, forceComputation = true, storageLevel = data.storageLevel)
 
     runtime.namedObjects.update("db", dbNamedDataset)
 
     val flatDb = db.map( row =>
-      FlatDbRow(
-        row.id.getOrElse("NA"),
-        row.sampleAnnotations.sample.getProtocolname,
-        row.sampleAnnotations.sample.getConcentration,
-        row.compoundAnnotations.compound.getType,
-        row.compoundAnnotations.compound.getJnjs,
-        row.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0
-      )
-    )
+          FlatDbRow(
+            row.id,
+            row.info.cell.getOrElse("N/A"),
+            row.trt.trt_cp.map(_.dose).getOrElse("N/A"),
+            row.trtType,
+            row.trt.trt.name,
+            row.profiles.profile.map(_.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0).getOrElse(false)
+          )
+        )
 
     val flatDbNamedDataset = NamedDataSet[FlatDbRow](flatDb, forceComputation = true, storageLevel = data.storageLevel)
 

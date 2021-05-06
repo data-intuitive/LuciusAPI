@@ -18,15 +18,15 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Dataset
 
 /**
-  * Returns the binned Zhang/similarity scores for the whole database for a given query.
+  * Return relevant metrics and information about the dataset.
   *
-  * Remark: Make sure you check the signature first, through checkSignature
+  * No input is required, the cached version of the the database is used.
   */
-object binnedZhang extends SparkSessionJob with NamedObjectSupport {
+object filters extends SparkSessionJob with NamedObjectSupport {
 
-  import BinnedCorrelation._
+  import Filters._
 
-  type JobData = BinnedCorrelation.JobData
+  type JobData = Filters.JobData
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
@@ -38,15 +38,11 @@ object binnedZhang extends SparkSessionJob with NamedObjectSupport {
     val flatDb = getFlatDB(runtime)
     val genes = getGenes(runtime)
 
-    val signature = paramSignature(config)
-    val binsX = optParamBinsX(config, 20)
-    val binsY = optParamBinsY(config, 20)
-    val filters = optParamFilters(config)
-
     val cachedData = withGood(db, flatDb, genes) { CachedData(_, _, _) }
-    val specificData = withGood(signature) { SpecificData(_, binsX, binsY, filters) }
+    val specificData = SpecificData()
 
-    withGood(version, cachedData, specificData) { JobData(_, _, _) }
+    withGood(version, cachedData) { JobData(_, _, specificData) }
+
   }
 
   override def runJob(sparkSession: SparkSession,
@@ -55,17 +51,11 @@ object binnedZhang extends SparkSessionJob with NamedObjectSupport {
 
     implicit val thisSession = sparkSession
 
-    data.version match {
-      case "v2" =>
-        Map(
-          "info" -> infoMsg,
-          "header" -> header(data),
-          "data" -> result(data)
-        )
-
-      case _ => Map("result" -> result(data))
-    }
-
+    Map(
+      "info" -> infoMsg,
+      "header" -> header(data),
+      "data" -> result(data)
+    )
   }
 
 }

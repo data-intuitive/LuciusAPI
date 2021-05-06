@@ -1,8 +1,10 @@
 package com.dataintuitive.luciusapi
 
 // LuciusCore
-import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.genes._
+import com.dataintuitive.luciuscore._
+import model.v4._
+import genes._
+import api._
 
 // Jobserver
 import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
@@ -23,8 +25,6 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 
-import com.dataintuitive.luciusapi.Model.FlatDbRow
-
 import com.dataintuitive.jobserver.NamedDataSet
 import com.dataintuitive.jobserver.DataSetPersister
 
@@ -39,8 +39,6 @@ object Common extends Serializable {
   implicit def broadcastPersister[U]: NamedObjectPersister[NamedBroadcast[U]] =
     new BroadcastPersister[U]
   implicit def DataSetPersister[T]: NamedObjectPersister[NamedDataSet[T]] = new DataSetPersister[T]
-
-  case class CachedData(db: Dataset[DbRow], flatDb: Dataset[FlatDbRow], genesDB: GenesDB)
 
   object ParamHandlers {
 
@@ -156,8 +154,8 @@ object Common extends Serializable {
         }.toOption
         .getOrElse(Seq())
 
-    def validVersion(config: Config): Boolean Or One[ValidationProblem] = {
-      if (VERSIONS contains optParamVersion(config)) Good(true)
+    def validVersion(config: Config): String Or One[ValidationProblem] = {
+      if (VERSIONS contains optParamVersion(config)) Good(optParamVersion(config))
       else Bad(One(SingleProblem("Not a valid version identifier")))
     }
 
@@ -173,9 +171,9 @@ object Common extends Serializable {
       Try(config.getString("features").toString.split(" ").toList).getOrElse(default)
     }
 
-    def getDB(runtime: JobEnvironment): Dataset[DbRow] Or One[ValidationProblem] = {
+    def getDB(runtime: JobEnvironment): Dataset[Perturbation] Or One[ValidationProblem] = {
       Try {
-        val NamedDataSet(db, _, _) = runtime.namedObjects.get[NamedDataSet[DbRow]]("db").get
+        val NamedDataSet(db, _, _) = runtime.namedObjects.get[NamedDataSet[Perturbation]]("db").get
         db
       }.map(db => Good(db))
         .getOrElse(Bad(One(SingleProblem("Cached DB not available"))))
