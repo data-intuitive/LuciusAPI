@@ -1,24 +1,23 @@
 name := "LuciusAPI"
 
+import aether.AetherKeys._
+
 version in ThisBuild := "4.0.0-SNAPSHOT"
 
 scalaVersion := "2.11.12"
 
-resolvers += "Job Server Bintray" at "https://dl.bintray.com/spark-jobserver/maven"
-
-resolvers += "Local Ivy" at "file://Users/toni/.ivy2/local"
-
 resolvers += Resolver.githubPackages("data-intuitive")
+/* resolvers += "Local Ivy" at "file://Users/toni/.ivy2/local" */
+resolvers += "Artifactory" at "https://sparkjobserver.jfrog.io/artifactory/jobserver/"
 
 libraryDependencies ++= Seq(
-  "com.data-intuitive" %% "luciuscore"        % "4.0.0-SNAPSHOT",
-  "spark.jobserver"    %% "job-server-api"    % "0.10.0"     % "provided",
-  "spark.jobserver"    %% "job-server-extras" % "0.10.0"     % "provided",
+  "com.data-intuitive" %% "luciuscore"        % "4.0.0",
+  "spark.jobserver"    %% "job-server-api"    % "0.11.1"     % "provided",
+  "spark.jobserver"    %% "job-server-extras" % "0.11.1"     % "provided",
   "org.scalactic"      %% "scalactic"         % "3.0.7"      % "test"    ,
   "org.scalatest"      %% "scalatest"         % "3.0.7"      % "test"    ,
   "org.apache.spark"   %% "spark-core"        % "2.4.7"      % "provided",
   "org.apache.spark"   %% "spark-sql"         % "2.4.7"      % "provided"
-  /* "org.scalaz"         %% "scalaz-core"       % "7.2.0" */
 )
 
 test in assembly := {}
