@@ -7,7 +7,6 @@ version in ThisBuild := "4.0.0"
 scalaVersion := "2.11.12"
 
 resolvers += Resolver.githubPackages("data-intuitive")
-/* resolvers += "Local Ivy" at "file://Users/toni/.ivy2/local" */
 resolvers += "Artifactory" at "https://sparkjobserver.jfrog.io/artifactory/jobserver/"
 
 libraryDependencies ++= Seq(
