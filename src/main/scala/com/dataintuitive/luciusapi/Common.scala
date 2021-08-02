@@ -201,6 +201,12 @@ object Common extends Serializable {
         .getOrElse(Bad(One(SingleProblem("DB config parameter not provided"))))
     }
 
+    def paramDbs(config: Config): List[String] Or One[ValidationProblem] = {
+      Try(config.getStringList("db.uris").asScala.toList)
+        .map(dbs => Good(dbs))
+        .getOrElse(Bad(One(SingleProblem("DB config parameter not provided"))))
+    }
+
     def paramGenes(config: Config): String Or One[ValidationProblem] = {
       Try(config.getString("geneAnnotations"))
         .map(ga => Good(ga))

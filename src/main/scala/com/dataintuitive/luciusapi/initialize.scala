@@ -27,7 +27,7 @@ import org.apache.spark.storage.StorageLevel._
 
 object initialize extends SparkSessionJob with NamedObjectSupport {
 
-  case class JobData(db: String,
+  case class JobData(dbs: List[String],
                      geneAnnotations: String,
                      dbVersion: String,
                      partitions: Int,
@@ -39,7 +39,7 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
                         runtime: JobEnvironment,
                         config: Config): JobData Or Every[ValidationProblem] = {
 
-    val db = paramDb(config)
+    val db = paramDbs(config)
     val genes = paramGenes(config)
     val dbVersion = paramDbVersion(config)
     val partitions = paramPartitions(config)
@@ -82,14 +82,15 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     runtime.namedObjects.update("genes", NamedBroadcast(genesBC))
 
     // Load data
-    val parquet = sparkSession.read
-      .parquet(data.db)
-    val dbRaw = (parquet, data.dbVersion) match {
-      // case (parquet, "v1") => parquet.as[OldDbRow].map(_.toDbRow)
-      // case (parquet, "v3") => parquet.as[DbRow]
-      case (parquet, _)  => parquet.as[Perturbation]
+    val parquets = data.dbs.map(sparkSession.read.parquet(_))
+    val dbRaws = parquets.map{ parquet =>
+      (parquet, data.dbVersion) match {
+        // case (parquet, "v1") => parquet.as[OldDbRow].map(_.toDbRow)
+        // case (parquet, "v3") => parquet.as[DbRow]
+        case (parquet, _)  => parquet.as[Perturbation]
+      }
     }
-    val db = dbRaw.repartition(data.partitions)
+    val db = dbRaws.reduce(_ union _).repartition(data.partitions)
 
     val dbNamedDataset = NamedDataSet[Perturbation](db, forceComputation = true, storageLevel = data.storageLevel)
 
@@ -113,7 +114,7 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     Map(
       "info" -> "Initialization done",
       "header" -> "None",
-      "data" -> (db.rdd.count, flatDb.rdd.count, genes)
+      "data" -> (db.rdd.count, flatDb.rdd.count)
     )
   }
 
