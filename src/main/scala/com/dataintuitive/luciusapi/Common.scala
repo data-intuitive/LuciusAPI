@@ -167,6 +167,14 @@ object Common extends Serializable {
       Try(config.getString("limit").toInt).getOrElse(default)
     }
 
+    def optParamLike(config: Config, default: List[String] = Nil): List[String] = {
+      Try(config.getString("like").split(" ").toList).getOrElse(default)
+    }
+
+    def optParamTrtType(config: Config, default: List[String] = Nil): List[String] = {
+      Try(config.getString("trtType").split(" ").toList).getOrElse(default)
+    }
+
     def optParamFeatures(config: Config, default: List[String] = List(".*")): List[String] = {
       Try(config.getString("features").toString.split(" ").toList).getOrElse(default)
     }
