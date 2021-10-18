@@ -215,6 +215,24 @@ object Common extends Serializable {
         .getOrElse(Bad(One(SingleProblem("DB config parameter not provided"))))
     }
 
+    /**
+     * Checks config for either db.uri or db.uris.
+     * This allows for both using the older format db.uri as single string
+     * or the newer format db.uris which allows a list of strings.
+     * By supporting the old format we prevent old config files from breaking.
+     */
+    def paramDbOrDbs(config: Config): List[String] Or One[ValidationProblem] = {
+      val singleDb = paramDb(config)
+      val multipleDbs = paramDbs(config)
+
+      (singleDb.isGood, multipleDbs.isGood) match {
+        case (false, false) => Bad(One(SingleProblem("DB config parameter not provided")))
+        case (true, true) => Bad(One(SingleProblem("Only one declaration of db.uri or db.uris is allowed")))
+        case (true, false) => singleDb.map(List(_))
+        case (false, true) => multipleDbs
+      }
+    }
+
     def paramGenes(config: Config): String Or One[ValidationProblem] = {
       Try(config.getString("geneAnnotations"))
         .map(ga => Good(ga))

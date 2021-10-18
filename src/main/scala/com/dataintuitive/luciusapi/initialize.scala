@@ -39,7 +39,7 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
                         runtime: JobEnvironment,
                         config: Config): JobData Or Every[ValidationProblem] = {
 
-    val db = paramDbs(config)
+    val db = paramDbOrDbs(config)
     val genes = paramGenes(config)
     val dbVersion = paramDbVersion(config)
     val partitions = paramPartitions(config)
