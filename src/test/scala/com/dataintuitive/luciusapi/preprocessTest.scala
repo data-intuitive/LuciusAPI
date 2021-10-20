@@ -1,5 +1,5 @@
 package com.dataintuitive.luciusapi
-
+/*
 import com.dataintuitive.luciuscore.Model.DbRow
 import com.dataintuitive.test.BaseSparkContextSpec
 import com.typesafe.config.{Config, ConfigFactory, ConfigValueFactory}
@@ -14,6 +14,7 @@ import scala.util.Try
   *
   * TODO: Find a more general approach to this, where a combination of tests is performed automatically.
   */
+
 class preprocessTest extends FlatSpec with BaseSparkContextSpec {
 
   // Init
@@ -134,3 +135,4 @@ class preprocessTest extends FlatSpec with BaseSparkContextSpec {
   }
 
 }
+*/
