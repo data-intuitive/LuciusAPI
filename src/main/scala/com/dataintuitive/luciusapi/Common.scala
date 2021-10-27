@@ -113,7 +113,12 @@ object Common extends Serializable {
     }
 
     def validHeadTail(config: Config): Boolean Or One[ValidationProblem] = {
-      if (optParamHead(config) > 0 || optParamTail(config) > 0) Good(true)
+      // we only want either head or tail but not both, so 'exclusive or' needed instead of 'or', so use '!=" instead of '||'
+      // (false, false) => false
+      // (true, false)  => true
+      // (false, true)  => true
+      // (true, true)   => false
+      if (optParamHead(config) > 0 != optParamTail(config) > 0) Good(true)
       else Bad(One(SingleProblem("Either head or tail count needs to be provided")))
     }
 
