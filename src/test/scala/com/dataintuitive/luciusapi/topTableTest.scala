@@ -3,7 +3,6 @@ package com.dataintuitive.luciusapi
 import com.dataintuitive.test.InitBefore
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{FunSpec, Matchers}
-import spark.jobserver.{SparkJobInvalid, SparkJobValid}
 
 class topTableTest extends FunSpec with Matchers with InitBefore {
 
@@ -47,7 +46,6 @@ class topTableTest extends FunSpec with Matchers with InitBefore {
 
       //validate(sc, thisConfig) should be (SparkJobValid)
       val jobData = topTable.validate(sparkSession, runtime, thisConfig)
-      // validate fails because
 
       jobData.isGood shouldBe true
 
