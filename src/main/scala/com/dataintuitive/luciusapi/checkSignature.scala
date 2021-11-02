@@ -39,10 +39,11 @@ object checkSignature extends SparkSessionJob with NamedObjectSupport {
     val db = getDB(runtime)
     val flatDb = getFlatDB(runtime)
     val genes = getGenes(runtime)
+    val filters = getFilters(runtime)
 
     val signature = optParamSignature(config)
 
-    val cachedData = withGood(db, flatDb, genes) { CachedData(_, _, _) }
+    val cachedData = withGood(db, flatDb, genes, filters) { CachedData(_, _, _, _) }
     val specificData = SpecificData(signature)
 
     withGood(version, cachedData) { JobData(_, _, specificData) }

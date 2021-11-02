@@ -111,6 +111,12 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
     runtime.namedObjects.update("flatdb", flatDbNamedDataset)
 
+    // Cache filters
+    val filters = Filters.calculate(db)(sparkSession)
+    val filtersBC = sparkSession.sparkContext.broadcast(filters)
+
+    runtime.namedObjects.update("filters", NamedBroadcast(filtersBC))
+
     Map(
       "info" -> "Initialization done",
       "header" -> "None",

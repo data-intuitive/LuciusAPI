@@ -32,17 +32,18 @@ object topTable extends SparkSessionJob with NamedObjectSupport {
     val db = getDB(runtime)
     val flatDb = getFlatDB(runtime)
     val genes = getGenes(runtime)
+    val filters = getFilters(runtime)
 
     val head = optParamHead(config)
     val tail = optParamTail(config)
     val signature = optParamSignature(config)
     val features = optParamFeatures(config)
-    val filters = optParamFilters(config)
+    val filtersParam = optParamFilters(config)
 
     val isValidHeadTail = validHeadTail(config)
 
-    val cachedData = withGood(db, flatDb, genes) { CachedData(_, _, _) }
-    val specificData = withGood(isValidHeadTail) { _ => SpecificData(head, tail, signature, features, filters) }
+    val cachedData = withGood(db, flatDb, genes, filters) { CachedData(_, _, _, _) }
+    val specificData = withGood(isValidHeadTail) { _ => SpecificData(head, tail, signature, features, filtersParam) }
 
     withGood(version, cachedData, specificData) { JobData(_, _, _) }
 
