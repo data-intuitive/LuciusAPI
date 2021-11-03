@@ -5,7 +5,7 @@ import com.dataintuitive.jobserver.NamedDataSet
 import com.dataintuitive.luciusapi.Common.{DataSetPersister, broadcastPersister}
 import com.dataintuitive.luciusapi.initialize
 import com.dataintuitive.luciusapi.initialize.JobData
-import com.dataintuitive.luciuscore.api.FlatDbRow
+import com.dataintuitive.luciuscore.api.{Filters, FlatDbRow}
 import com.dataintuitive.luciuscore.genes.{Gene, GenesDB}
 import com.dataintuitive.luciuscore.model.v4.Perturbation
 import com.typesafe.config.{Config, ConfigFactory}
@@ -90,6 +90,9 @@ trait InitBefore extends Suite with BaseSparkContextSpec with BeforeAndAfterAll 
 
     val flatDbNamedDataset = NamedDataSet[FlatDbRow](flatDb, forceComputation = false, storageLevel = data.storageLevel)
     runtime.namedObjects.update("flatdb", flatDbNamedDataset)
+
+    val filtersDB: Filters.FiltersDB = Map.empty
+    runtime.namedObjects.update("filters", NamedBroadcast(sparkSession.sparkContext.broadcast(filtersDB)))
   }
 
 }
