@@ -5,7 +5,6 @@ import com.dataintuitive.luciuscore._
 import model.v4._
 import genes._
 import api._
-import com.dataintuitive.luciuscore.filters.Filters
 
 // Jobserver
 import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
@@ -209,9 +208,9 @@ object Common extends Serializable {
         .getOrElse(Bad(One(SingleProblem("Broadcast genes not available"))))
     }
 
-    def getFilters(runtime: JobEnvironment): Filters Or One[ValidationProblem] = {
+    def getFilters(runtime: JobEnvironment): Filters.FiltersDB Or One[ValidationProblem] = {
       Try {
-        val NamedBroadcast(filters) = runtime.namedObjects.get[NamedBroadcast[Filters]]("filters").get
+        val NamedBroadcast(filters) = runtime.namedObjects.get[NamedBroadcast[Filters.FiltersDB]]("filters").get
         filters.value
       }.map(filters => Good(filters))
         .getOrElse(Bad(One(SingleProblem("Broadcast filters not available"))))
