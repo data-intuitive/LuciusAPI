@@ -21,6 +21,7 @@ import com.typesafe.config.Config
 
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.Encoders
 
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.storage.StorageLevel._
@@ -81,8 +82,15 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
     runtime.namedObjects.update("genes", NamedBroadcast(genesBC))
 
-    // Load data
-    val parquets = data.dbs.map(sparkSession.read.parquet(_))
+    val parquets = data.dbs.map(
+      sparkSession.read
+        .schema(Encoders.product[Perturbation].schema) // This assists parquet file reading so that it is more independent of our current Perturbation format.
+                                                       // Without adding the schema, the parquet needs to be 100% similar to Perturbations.
+                                                       // At the moment of writing, this was needed because the parquet files only have 4 treatment types but the
+                                                       // Perturbation class have the full 14 types.
+        .parquet(_)
+        //.as(Encoders.product[Perturbation])
+    )
     val dbRaws = parquets.map{ parquet =>
       (parquet, data.dbVersion) match {
         // case (parquet, "v1") => parquet.as[OldDbRow].map(_.toDbRow)
@@ -110,6 +118,12 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     val flatDbNamedDataset = NamedDataSet[FlatDbRow](flatDb, forceComputation = true, storageLevel = data.storageLevel)
 
     runtime.namedObjects.update("flatdb", flatDbNamedDataset)
+
+    // Cache filters
+    val filters = Filters.calculate(db)(sparkSession)
+    val filtersBC = sparkSession.sparkContext.broadcast(filters)
+
+    runtime.namedObjects.update("filters", NamedBroadcast(filtersBC))
 
     Map(
       "info" -> "Initialization done",

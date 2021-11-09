@@ -32,11 +32,12 @@ object generateSignature extends SparkSessionJob with NamedObjectSupport {
     val db = getDB(runtime)
     val flatDb = getFlatDB(runtime)
     val genes = getGenes(runtime)
+    val filters = getFilters(runtime)
 
     val pValue = optPValue(config)
     val perturbations = paramSamples(config)
 
-    val cachedData = withGood(db, flatDb, genes) { CachedData(_, _, _) }
+    val cachedData = withGood(db, flatDb, genes, filters) { CachedData(_, _, _, _) }
     val specificData = withGood(perturbations) { SpecificData(pValue, _) }
 
     withGood(version, cachedData, specificData) { JobData(_, _, _) }

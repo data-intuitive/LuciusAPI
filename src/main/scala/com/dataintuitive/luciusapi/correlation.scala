@@ -34,14 +34,15 @@ object correlation extends SparkSessionJob with NamedObjectSupport {
     val db = getDB(runtime)
     val flatDb = getFlatDB(runtime)
     val genes = getGenes(runtime)
+    val filters = getFilters(runtime)
 
     val signature1 = paramSignature1(config)
     val signature2 = paramSignature2(config)
     val bins = optParamBins(config, 20)
-    val filters = optParamFilters(config)
+    val filtersParam = optParamFilters(config)
 
-    val cachedData = withGood(db, flatDb, genes) { CachedData(_, _, _) }
-    val specificData = withGood(signature1, signature2) { SpecificData(_, _, bins, filters) }
+    val cachedData = withGood(db, flatDb, genes, filters) { CachedData(_, _, _, _) }
+    val specificData = withGood(signature1, signature2) { SpecificData(_, _, bins, filtersParam) }
 
     withGood(version, cachedData, specificData) { JobData(_, _, _) }
 

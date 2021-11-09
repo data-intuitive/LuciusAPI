@@ -4,7 +4,7 @@ import spark.jobserver.{SparkJobInvalid, SparkJobValid}
 import com.dataintuitive.test.InitBefore
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{FunSpec, Matchers}
-
+/*
 class compoundsTest extends FunSpec with Matchers with InitBefore {
 
   import compounds._
@@ -134,3 +134,4 @@ class compoundsTest extends FunSpec with Matchers with InitBefore {
   }
 
 }
+*/

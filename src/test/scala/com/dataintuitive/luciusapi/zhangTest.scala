@@ -4,7 +4,7 @@ import spark.jobserver.{SparkJobInvalid, SparkJobValid}
 import com.dataintuitive.test.InitBefore
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{FunSpec, Matchers}
-
+/*
 class zhangTest extends FunSpec with Matchers with InitBefore {
 
   import zhang._
@@ -31,3 +31,4 @@ class zhangTest extends FunSpec with Matchers with InitBefore {
   }
 
 }
+*/

@@ -37,14 +37,15 @@ object binnedZhang extends SparkSessionJob with NamedObjectSupport {
     val db = getDB(runtime)
     val flatDb = getFlatDB(runtime)
     val genes = getGenes(runtime)
+    val filters = getFilters(runtime)
 
     val signature = paramSignature(config)
     val binsX = optParamBinsX(config, 20)
     val binsY = optParamBinsY(config, 20)
-    val filters = optParamFilters(config)
+    val filtersParam = optParamFilters(config)
 
-    val cachedData = withGood(db, flatDb, genes) { CachedData(_, _, _) }
-    val specificData = withGood(signature) { SpecificData(_, binsX, binsY, filters) }
+    val cachedData = withGood(db, flatDb, genes, filters) { CachedData(_, _, _, _) }
+    val specificData = withGood(signature) { SpecificData(_, binsX, binsY, filtersParam) }
 
     withGood(version, cachedData, specificData) { JobData(_, _, _) }
   }
