@@ -2,7 +2,7 @@ name := "LuciusAPI"
 
 import aether.AetherKeys._
 
-version in ThisBuild := "5.0.0-alpha5"
+version in ThisBuild := "5.0.0-alpha6"
 
 scalaVersion := "2.11.12"
 
@@ -10,7 +10,7 @@ resolvers += Resolver.githubPackages("data-intuitive")
 resolvers += "Artifactory" at "https://sparkjobserver.jfrog.io/artifactory/jobserver/"
 
 libraryDependencies ++= Seq(
-  "com.data-intuitive" %% "luciuscore"        % "4.0.7",
+  "com.data-intuitive" %% "luciuscore"        % "4.0.8",
   "spark.jobserver"    %% "job-server-api"    % "0.11.1"     % "provided",
   "spark.jobserver"    %% "job-server-extras" % "0.11.1"     % "provided",
   "org.scalactic"      %% "scalactic"         % "3.0.7"      % "test"    ,
