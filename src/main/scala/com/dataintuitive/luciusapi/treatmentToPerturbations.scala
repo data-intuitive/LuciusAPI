@@ -1,21 +1,14 @@
 package com.dataintuitive.luciusapi
 
+import com.dataintuitive.luciusapi.Common.ParamHandlers._
 import com.dataintuitive.luciuscore._
-import genes._
-import api._
-
-import Common.ParamHandlers._
-
-import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
-import spark.jobserver._
-
-import scala.util.Try
-import org.scalactic._
-import Accumulation._
+import com.dataintuitive.luciuscore.api._
 import com.typesafe.config.Config
-
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.Dataset
+import org.scalactic.Accumulation._
+import org.scalactic._
+import spark.jobserver._
+import spark.jobserver.api.{JobEnvironment, ValidationProblem}
 
 /**
   * Returns a list of compounds and corresponding samples matching a query, optionally with a limit on the number of results.
@@ -28,8 +21,7 @@ import org.apache.spark.sql.Dataset
   *
   * - __`limit`__: The result size is limited to this number (optional, default is 10)
   */
-@scala.deprecated("Please use treatmentToPerturbations instead of compoundToSamples", "5.0.0-alpha6")
-object compoundToSamples extends SparkSessionJob with NamedObjectSupport {
+object treatmentToPerturbations extends SparkSessionJob with NamedObjectSupport {
 
   import TreatmentToPerturbations._
 
@@ -66,7 +58,7 @@ object compoundToSamples extends SparkSessionJob with NamedObjectSupport {
     data.version match {
       case "v2" =>
         Map(
-          "info" -> ("This API call is deprecated. Please use treatmentToPerturbations. " + infoMsg),
+          "info" -> infoMsg,
           "header" -> header(data),
           "data" -> result(data)
         )
