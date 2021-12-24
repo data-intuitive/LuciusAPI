@@ -295,17 +295,6 @@ object Common extends Serializable {
           .getOrElse(defaultDict)
     }
 
-    /**
-     * geneDataType contains a mapping between the read dataType and how it should be
-     * returned from the code.
-     * This is especially useful when two dataTypes are read in together to be concatenated,
-     */
-    def paramGeneDataTypes(config: Config):Map[String, String] = {
-      Try(config.getObject("geneDataType")).toOption
-        .map(_.unwrapped.asScala.toMap.map{case (k,v) => (k.toString, v.toString)})
-        .getOrElse(Map.empty)
-    }
-
   }
 
 }
