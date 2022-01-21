@@ -33,7 +33,8 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
                      dbVersion: String,
                      partitions: Int,
                      storageLevel: StorageLevel,
-                     geneFeatures: Map[String, String])
+                     geneFeatures: Map[String, String],
+                     geneDataTypes: Map[String, String])
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
@@ -46,8 +47,9 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     val partitions = paramPartitions(config)
     val storageLevel = paramStorageLevel(config)
     val geneFeatures = paramGeneFeatures(config)
+    val geneDataTypes = paramGeneDataTypes(config)
 
-    withGood(db, genes) { JobData(_, _, dbVersion, partitions, storageLevel, geneFeatures) }
+    withGood(db, genes) { JobData(_, _, dbVersion, partitions, storageLevel, geneFeatures, geneDataTypes) }
 
   }
 
@@ -76,7 +78,7 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
     // Loading gene annotations and broadcast
     val genes =
-      loadGenesFromFile(sparkSession.sparkContext, data.geneAnnotations, delimiter="\t", dict = data.geneFeatures)
+      loadGenesFromFile(sparkSession.sparkContext, data.geneAnnotations, delimiter="\t", dict = data.geneFeatures, dataTypeDict = data.geneDataTypes)
     val genesDB = new GenesDB(genes)
     val genesBC = sparkSession.sparkContext.broadcast(genesDB)
 
