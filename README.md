@@ -1,19 +1,22 @@
 # Introduction
 
-This project provides the API for [LuciusWeb](https://github.com/data-intuitive/LuciusWeb) to talk to. The API is a [Spark Jobserver](https://github.com/spark-jobserver/spark-jobserver) project. It needs to be compiled and the resulting `jar` has to be uploaded to the Spark-Jobserver.
+This project provides the API for [LuciusWeb](https://github.com/data-intuitive/LuciusWeb). The API is a [Spark Jobserver](https://github.com/spark-jobserver/spark-jobserver) project. It needs to be compiled and the resulting `jar` has to be uploaded to the Spark-Jobserver.
 
 There's still a lot of work to be done on this (version numbers don't reflect everything).
 
-__Please note that version 2.1.0 and onwards is for Spark 2.2.1.__
+# Dependencies
 
+| LuciusAPI | LuciusCore | Spark Jobserver | Spark |
+|-----------|------------|-----------------|-------|
+| 5.0.0     | 4.0.10     | 0.11.1          | 2.4.7 |
 
-# API
+# API Documentation
 
 The documentation of the (__old version__) of the API is available in [postman](https://www.getpostman.com/) and [can be found here](https://www.getpostman.com/collections/cf537f6cae9b82c35034).
 
 # Data
 
-Public data is not available yet.
+Public data is not available (yet).
 
 # Local Deployment
 
