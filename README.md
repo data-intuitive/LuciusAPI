@@ -9,6 +9,7 @@ There's still a lot of work to be done on this (version numbers don't reflect ev
 | LuciusAPI | LuciusCore | Spark Jobserver | Spark |
 |-----------|------------|-----------------|-------|
 | 5.0.0     | 4.0.10     | 0.11.1          | 2.4.7 |
+| 5.0.1     | 4.0.11     | 0.11.1          | 2.4.7 |
 
 # API Documentation
 
