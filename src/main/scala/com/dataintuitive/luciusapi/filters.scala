@@ -17,11 +17,16 @@ import com.typesafe.config.Config
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Dataset
 
-object annotatedplatewellids extends SparkSessionJob with NamedObjectSupport {
+/**
+  * Return relevant metrics and information about the dataset.
+  *
+  * No input is required, the cached version of the the database is used.
+  */
+object filters extends SparkSessionJob with NamedObjectSupport {
 
-  import AnnotatedIds._
+  import Filters._
 
-  type JobData = AnnotatedIds.JobData
+  type JobData = Filters.JobData
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
@@ -34,13 +39,8 @@ object annotatedplatewellids extends SparkSessionJob with NamedObjectSupport {
     val genes = getGenes(runtime)
     val filters = getFilters(runtime)
 
-    val signature = optParamSignature(config)
-    val ids = optParamPwids(config)
-    val limit = optParamLimit(config)
-    val features = optParamFeatures(config)
-
     val cachedData = withGood(db, flatDb, genes, filters) { CachedData(_, _, _, _) }
-    val specificData = SpecificData(signature, limit, ids, features)
+    val specificData = SpecificData()
 
     withGood(version, cachedData) { JobData(_, _, specificData) }
 
@@ -52,17 +52,11 @@ object annotatedplatewellids extends SparkSessionJob with NamedObjectSupport {
 
     implicit val thisSession = sparkSession
 
-    data.version match {
-      case "v2" =>
-        Map(
-          "info" -> infoMsg,
-          "header" -> header(data),
-          "data" -> result(data)
-        )
-
-      case _ => Map("result" -> result(data))
-    }
-
+    Map(
+      "info" -> infoMsg,
+      "header" -> header(data),
+      "data" -> result(data)
+    )
   }
 
 }

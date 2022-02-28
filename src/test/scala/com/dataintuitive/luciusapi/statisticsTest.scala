@@ -8,6 +8,7 @@ import spark.jobserver.SparkJobValid
 /**
   * Created by toni on 07/10/16.
   */
+/*
 class statisticsTest extends FunSpec with Matchers with InitBefore {
 
   import statistics._
@@ -39,3 +40,4 @@ class statisticsTest extends FunSpec with Matchers with InitBefore {
 
   }
 }
+*/

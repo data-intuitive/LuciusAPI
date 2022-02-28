@@ -1,71 +1,55 @@
 package com.dataintuitive.luciusapi
 
-import com.dataintuitive.luciuscore.genes._
-import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.OldModel.OldDbRow
-import com.dataintuitive.luciuscore.io.GenesIO._
-import com.dataintuitive.luciuscore.io.IoFunctions._
-import com.typesafe.config.Config
+import com.dataintuitive.luciuscore._
+import model.v4._
+import genes._
+import api._
+import io.GenesIO._
 
 import Common.ParamHandlers._
+import com.dataintuitive.jobserver._
+import Common._
 
-import com.typesafe.config.Config
-import org.apache.spark.sql.SparkSession
-import spark.jobserver.SparkSessionJob
 import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
-import org.apache.spark.sql.Dataset
+import spark.jobserver.SparkSessionJob
+import spark.jobserver._
 
 import scala.util.Try
 import org.scalactic._
 import Accumulation._
+import com.typesafe.config.Config
+
+import org.apache.spark.sql.SparkSession
+import org.apache.spark.sql.Dataset
+import org.apache.spark.sql.Encoders
 
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.storage.StorageLevel._
-import spark.jobserver._
 
-import Common._
-import com.dataintuitive.luciusapi.Model.FlatDbRow
-
-import com.dataintuitive.jobserver.NamedDataSet
-import com.dataintuitive.jobserver.DataSetPersister
-
-import org.apache.spark.rdd.RDD
-import org.apache.spark.SparkContext
-
-object CoreFuncions {
-
-}
-/**
-  * Initialize the API by caching the database with sample-compound information
-  *
-  * We make a distinction between running within SparkJobserver and not.
-  * The difference is in the handling of named objects in-between api calls.
-  *
-  * - For Jobserver we use NamedObject support for both the RDD and the dictionary of genes.
-  * - For local, we use PersistentRDDs in combination with a new loading of the genes database at every call.
-  */
 object initialize extends SparkSessionJob with NamedObjectSupport {
 
-  case class JobData(db: String,
+  case class JobData(dbs: List[String],
                      geneAnnotations: String,
                      dbVersion: String,
                      partitions: Int,
                      storageLevel: StorageLevel,
-                     geneFeatures: Map[String, String])
+                     geneFeatures: Map[String, String],
+                     geneDataTypes: Map[String, String])
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
                         runtime: JobEnvironment,
                         config: Config): JobData Or Every[ValidationProblem] = {
 
-    val db = paramDb(config)
+    val db = paramDbOrDbs(config)
     val genes = paramGenes(config)
     val dbVersion = paramDbVersion(config)
     val partitions = paramPartitions(config)
     val storageLevel = paramStorageLevel(config)
     val geneFeatures = paramGeneFeatures(config)
+    val geneDataTypes = paramGeneDataTypes(config)
 
-    withGood(db, genes) { JobData(_, _, dbVersion, partitions, storageLevel, geneFeatures) }
+    withGood(db, genes) { JobData(_, _, dbVersion, partitions, storageLevel, geneFeatures, geneDataTypes) }
 
   }
 
@@ -94,44 +78,59 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
     // Loading gene annotations and broadcast
     val genes =
-      loadGenesFromFile(sparkSession.sparkContext, data.geneAnnotations, delimiter="\t", dict = data.geneFeatures)
+      loadGenesFromFile(sparkSession.sparkContext, data.geneAnnotations, delimiter="\t", dict = data.geneFeatures, dataTypeDict = data.geneDataTypes)
     val genesDB = new GenesDB(genes)
     val genesBC = sparkSession.sparkContext.broadcast(genesDB)
 
     runtime.namedObjects.update("genes", NamedBroadcast(genesBC))
 
-    // Load data
-    val parquet = sparkSession.read
-      .parquet(data.db)
-    val dbRaw = (parquet, data.dbVersion) match {
-      case (oldFormatParquet, "v1") => oldFormatParquet.as[OldDbRow].map(_.toDbRow)
-      case (newFormatParquet, _)    => newFormatParquet.as[DbRow]
+    val parquets = data.dbs.map(
+      sparkSession.read
+        .schema(Encoders.product[Perturbation].schema) // This assists parquet file reading so that it is more independent of our current Perturbation format.
+                                                       // Without adding the schema, the parquet needs to be 100% similar to Perturbations.
+                                                       // At the moment of writing, this was needed because the parquet files only have 4 treatment types but the
+                                                       // Perturbation class have the full 14 types.
+        .parquet(_)
+        //.as(Encoders.product[Perturbation])
+    )
+    val dbRaws = parquets.map{ parquet =>
+      (parquet, data.dbVersion) match {
+        // case (parquet, "v1") => parquet.as[OldDbRow].map(_.toDbRow)
+        // case (parquet, "v3") => parquet.as[DbRow]
+        case (parquet, _)  => parquet.as[Perturbation]
+      }
     }
-    val db = dbRaw.repartition(data.partitions)
+    val db = dbRaws.reduce(_ union _).repartition(data.partitions)
 
-    val dbNamedDataset = NamedDataSet[DbRow](db, forceComputation = true, storageLevel = data.storageLevel)
+    val dbNamedDataset = NamedDataSet[Perturbation](db, forceComputation = true, storageLevel = data.storageLevel)
 
     runtime.namedObjects.update("db", dbNamedDataset)
 
     val flatDb = db.map( row =>
-      FlatDbRow(
-        row.id.getOrElse("NA"),
-        row.sampleAnnotations.sample.getProtocolname,
-        row.sampleAnnotations.sample.getConcentration,
-        row.compoundAnnotations.compound.getType,
-        row.compoundAnnotations.compound.getJnjs,
-        row.sampleAnnotations.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0
-      )
-    )
+          FlatDbRow(
+            row.id,
+            row.info.cell.getOrElse("N/A"),
+            row.trt.trt_cp.map(_.dose).getOrElse("N/A"),
+            row.trtType,
+            row.trt.trt.name,
+            row.profiles.profile.map(_.p.map(_.count(_ <= 0.05)).getOrElse(0) > 0).getOrElse(false)
+          )
+        )
 
     val flatDbNamedDataset = NamedDataSet[FlatDbRow](flatDb, forceComputation = true, storageLevel = data.storageLevel)
 
     runtime.namedObjects.update("flatdb", flatDbNamedDataset)
 
+    // Cache filters
+    val filters = Filters.calculate(db)(sparkSession)
+    val filtersBC = sparkSession.sparkContext.broadcast(filters)
+
+    runtime.namedObjects.update("filters", NamedBroadcast(filtersBC))
+
     Map(
       "info" -> "Initialization done",
       "header" -> "None",
-      "data" -> (db.rdd.count, flatDb.rdd.count, genes)
+      "data" -> (db.rdd.count, flatDb.rdd.count)
     )
   }
 

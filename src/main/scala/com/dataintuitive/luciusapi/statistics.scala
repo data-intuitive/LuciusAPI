@@ -1,25 +1,19 @@
 package com.dataintuitive.luciusapi
 
-// Functions implementation and common code
-import functions.StatisticsFunctions._
+import com.dataintuitive.luciuscore._
+import genes._
+import api._
+
 import Common.ParamHandlers._
 
-
-// LuciusCore
-import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.genes._
-
-// Jobserver
 import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
 import spark.jobserver._
 
-// Scala, Scalactic and Typesafe
 import scala.util.Try
 import org.scalactic._
 import Accumulation._
 import com.typesafe.config.Config
 
-// Spark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Dataset
 
@@ -30,18 +24,25 @@ import org.apache.spark.sql.Dataset
   */
 object statistics extends SparkSessionJob with NamedObjectSupport {
 
-  type JobData = functions.StatisticsFunctions.JobData
+  import Statistics._
+
+  type JobData = Statistics.JobData
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
                         runtime: JobEnvironment,
                         config: Config): JobData Or Every[ValidationProblem] = {
 
+    val version = validVersion(config)
     val db = getDB(runtime)
     val flatDb = getFlatDB(runtime)
     val genes = getGenes(runtime)
+    val filters = getFilters(runtime)
 
-    withGood(db, flatDb, genes) { JobData(_, _, _) }
+    val cachedData = withGood(db, flatDb, genes, filters) { CachedData(_, _, _, _) }
+    val specificData = SpecificData()
+
+    withGood(version, cachedData) { JobData(_, _, specificData) }
 
   }
 
@@ -52,7 +53,7 @@ object statistics extends SparkSessionJob with NamedObjectSupport {
     implicit val thisSession = sparkSession
 
     Map(
-      "info" -> info(data),
+      "info" -> infoMsg,
       "header" -> header(data),
       "data" -> result(data)
     )

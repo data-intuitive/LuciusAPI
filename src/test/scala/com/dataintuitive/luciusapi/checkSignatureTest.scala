@@ -10,6 +10,7 @@ import spark.jobserver.{SparkJobInvalid, SparkJobValid}
   *
   * TODO: Find a more general approach to this, where a combination of tests is performed automatically.
   */
+/*
 class checkSignatureTest extends FunSpec with Matchers with InitBefore {
 
   import checkSignature._
@@ -57,3 +58,4 @@ class checkSignatureTest extends FunSpec with Matchers with InitBefore {
 
   }
 }
+*/

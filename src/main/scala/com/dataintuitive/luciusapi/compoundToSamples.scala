@@ -1,24 +1,19 @@
 package com.dataintuitive.luciusapi
 
-// Functions implementation and common code
-import functions.CompoundToSamplesFunctions._
+import com.dataintuitive.luciuscore._
+import genes._
+import api._
+
 import Common.ParamHandlers._
 
-// LuciusCore
-import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.genes._
-
-// Jobserver
 import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
 import spark.jobserver._
 
-// Scala, Scalactic and Typesafe
 import scala.util.Try
 import org.scalactic._
 import Accumulation._
 import com.typesafe.config.Config
 
-// Spark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Dataset
 
@@ -33,27 +28,32 @@ import org.apache.spark.sql.Dataset
   *
   * - __`limit`__: The result size is limited to this number (optional, default is 10)
   */
+@scala.deprecated("Please use treatmentToPerturbations instead of compoundToSamples", "5.0.0-alpha6")
 object compoundToSamples extends SparkSessionJob with NamedObjectSupport {
 
-  type JobData = functions.CompoundToSamplesFunctions.JobData
+  import TreatmentToPerturbations._
+
+  type JobData = TreatmentToPerturbations.JobData
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
                         runtime: JobEnvironment,
                         config: Config): JobData Or Every[ValidationProblem] = {
 
+    val version = validVersion(config)
     val db = getDB(runtime)
+    val flatDb = getFlatDB(runtime)
     val genes = getGenes(runtime)
-    val limit = optParamLimit(config, 10)
-    val pValue = optPValue(config, 0.05)
-    val version = optParamVersion(config)
-    val isValidVersion = validVersion(config)
-    val compoundQuery = paramCompounds(config)
+    val filters = getFilters(runtime)
 
-    (isValidVersion zip
-      withGood(db, genes, compoundQuery) {
-        JobData(_, _, pValue, version, _, limit)
-      }).map(_._2)
+    val pValue = optPValue(config, 0.05)
+    val compoundQuery = paramCompounds(config)
+    val limit = optParamLimit(config)
+
+    val cachedData = withGood(db, flatDb, genes, filters) { CachedData(_, _, _, _) }
+    val specificData = withGood(compoundQuery) { SpecificData(pValue, _, limit) }
+
+    withGood(version, cachedData, specificData) { JobData(_, _, _) }
 
   }
 
@@ -66,7 +66,7 @@ object compoundToSamples extends SparkSessionJob with NamedObjectSupport {
     data.version match {
       case "v2" =>
         Map(
-          "info" -> info(data),
+          "info" -> ("This API call is deprecated. Please use treatmentToPerturbations. " + infoMsg),
           "header" -> header(data),
           "data" -> result(data)
         )

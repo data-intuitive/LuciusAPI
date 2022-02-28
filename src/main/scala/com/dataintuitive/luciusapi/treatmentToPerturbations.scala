@@ -1,27 +1,31 @@
 package com.dataintuitive.luciusapi
 
+import com.dataintuitive.luciusapi.Common.ParamHandlers._
 import com.dataintuitive.luciuscore._
-import genes._
-import api._
-
-import Common.ParamHandlers._
-
-import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
-import spark.jobserver._
-
-import scala.util.Try
-import org.scalactic._
-import Accumulation._
+import com.dataintuitive.luciuscore.api._
 import com.typesafe.config.Config
-
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.Dataset
+import org.scalactic.Accumulation._
+import org.scalactic._
+import spark.jobserver._
+import spark.jobserver.api.{JobEnvironment, ValidationProblem}
 
-object annotatedplatewellids extends SparkSessionJob with NamedObjectSupport {
+/**
+  * Returns a list of compounds and corresponding samples matching a query, optionally with a limit on the number of results.
+  *
+  * Input:
+  *
+  * - __`query`__: Depending on the pattern, a regexp match or `startsWith` is applied (mandatory)
+  *
+  * - __`version`__: v1, v2 or t1 (optional, default is `v1`)
+  *
+  * - __`limit`__: The result size is limited to this number (optional, default is 10)
+  */
+object treatmentToPerturbations extends SparkSessionJob with NamedObjectSupport {
 
-  import AnnotatedIds._
+  import TreatmentToPerturbations._
 
-  type JobData = AnnotatedIds.JobData
+  type JobData = TreatmentToPerturbations.JobData
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
@@ -34,15 +38,14 @@ object annotatedplatewellids extends SparkSessionJob with NamedObjectSupport {
     val genes = getGenes(runtime)
     val filters = getFilters(runtime)
 
-    val signature = optParamSignature(config)
-    val ids = optParamPwids(config)
+    val pValue = optPValue(config, 0.05)
+    val compoundQuery = paramCompounds(config)
     val limit = optParamLimit(config)
-    val features = optParamFeatures(config)
 
     val cachedData = withGood(db, flatDb, genes, filters) { CachedData(_, _, _, _) }
-    val specificData = SpecificData(signature, limit, ids, features)
+    val specificData = withGood(compoundQuery) { SpecificData(pValue, _, limit) }
 
-    withGood(version, cachedData) { JobData(_, _, specificData) }
+    withGood(version, cachedData, specificData) { JobData(_, _, _) }
 
   }
 

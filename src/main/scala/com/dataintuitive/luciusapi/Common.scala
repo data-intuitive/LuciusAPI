@@ -1,8 +1,10 @@
 package com.dataintuitive.luciusapi
 
 // LuciusCore
-import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.genes._
+import com.dataintuitive.luciuscore._
+import model.v4._
+import genes._
+import api._
 
 // Jobserver
 import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
@@ -23,8 +25,6 @@ import org.apache.spark.broadcast.Broadcast
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 
-import com.dataintuitive.luciusapi.Model.FlatDbRow
-
 import com.dataintuitive.jobserver.NamedDataSet
 import com.dataintuitive.jobserver.DataSetPersister
 
@@ -39,8 +39,6 @@ object Common extends Serializable {
   implicit def broadcastPersister[U]: NamedObjectPersister[NamedBroadcast[U]] =
     new BroadcastPersister[U]
   implicit def DataSetPersister[T]: NamedObjectPersister[NamedDataSet[T]] = new DataSetPersister[T]
-
-  case class CachedData(db: Dataset[DbRow], flatDb: Dataset[FlatDbRow], genesDB: GenesDB)
 
   object ParamHandlers {
 
@@ -115,7 +113,12 @@ object Common extends Serializable {
     }
 
     def validHeadTail(config: Config): Boolean Or One[ValidationProblem] = {
-      if (optParamHead(config) > 0 || optParamTail(config) > 0) Good(true)
+      // we only want either head or tail but not both, so 'exclusive or' needed instead of 'or', so use '!=" instead of '||'
+      // (false, false) => false
+      // (true, false)  => true
+      // (false, true)  => true
+      // (true, true)   => false
+      if (optParamHead(config) > 0 != optParamTail(config) > 0) Good(true)
       else Bad(One(SingleProblem("Either head or tail count needs to be provided")))
     }
 
@@ -156,8 +159,8 @@ object Common extends Serializable {
         }.toOption
         .getOrElse(Seq())
 
-    def validVersion(config: Config): Boolean Or One[ValidationProblem] = {
-      if (VERSIONS contains optParamVersion(config)) Good(true)
+    def validVersion(config: Config): String Or One[ValidationProblem] = {
+      if (VERSIONS contains optParamVersion(config)) Good(optParamVersion(config))
       else Bad(One(SingleProblem("Not a valid version identifier")))
     }
 
@@ -169,13 +172,21 @@ object Common extends Serializable {
       Try(config.getString("limit").toInt).getOrElse(default)
     }
 
+    def optParamLike(config: Config, default: List[String] = Nil): List[String] = {
+      Try(config.getString("like").split(" ").toList).getOrElse(default)
+    }
+
+    def optParamTrtType(config: Config, default: List[String] = Nil): List[String] = {
+      Try(config.getString("trtType").split(" ").toList).getOrElse(default)
+    }
+
     def optParamFeatures(config: Config, default: List[String] = List(".*")): List[String] = {
       Try(config.getString("features").toString.split(" ").toList).getOrElse(default)
     }
 
-    def getDB(runtime: JobEnvironment): Dataset[DbRow] Or One[ValidationProblem] = {
+    def getDB(runtime: JobEnvironment): Dataset[Perturbation] Or One[ValidationProblem] = {
       Try {
-        val NamedDataSet(db, _, _) = runtime.namedObjects.get[NamedDataSet[DbRow]]("db").get
+        val NamedDataSet(db, _, _) = runtime.namedObjects.get[NamedDataSet[Perturbation]]("db").get
         db
       }.map(db => Good(db))
         .getOrElse(Bad(One(SingleProblem("Cached DB not available"))))
@@ -197,10 +208,42 @@ object Common extends Serializable {
         .getOrElse(Bad(One(SingleProblem("Broadcast genes not available"))))
     }
 
+    def getFilters(runtime: JobEnvironment): Filters.FiltersDB Or One[ValidationProblem] = {
+      Try {
+        val NamedBroadcast(filters) = runtime.namedObjects.get[NamedBroadcast[Filters.FiltersDB]]("filters").get
+        filters.value
+      }.map(filters => Good(filters))
+        .getOrElse(Bad(One(SingleProblem("Broadcast filters not available"))))
+    }
+
     def paramDb(config: Config): String Or One[ValidationProblem] = {
       Try(config.getString("db.uri"))
         .map(db => Good(db))
         .getOrElse(Bad(One(SingleProblem("DB config parameter not provided"))))
+    }
+
+    def paramDbs(config: Config): List[String] Or One[ValidationProblem] = {
+      Try(config.getStringList("db.uris").asScala.toList)
+        .map(dbs => Good(dbs))
+        .getOrElse(Bad(One(SingleProblem("DB config parameter not provided"))))
+    }
+
+    /**
+     * Checks config for either db.uri or db.uris.
+     * This allows for both using the older format db.uri as single string
+     * or the newer format db.uris which allows a list of strings.
+     * By supporting the old format we prevent old config files from breaking.
+     */
+    def paramDbOrDbs(config: Config): List[String] Or One[ValidationProblem] = {
+      val singleDb = paramDb(config)
+      val multipleDbs = paramDbs(config)
+
+      (singleDb.isGood, multipleDbs.isGood) match {
+        case (false, false) => Bad(One(SingleProblem("DB config parameter not provided")))
+        case (true, true) => Bad(One(SingleProblem("Only one declaration of db.uri or db.uris is allowed")))
+        case (true, false) => singleDb.map(List(_))
+        case (false, true) => multipleDbs
+      }
     }
 
     def paramGenes(config: Config): String Or One[ValidationProblem] = {
@@ -252,37 +295,16 @@ object Common extends Serializable {
           .getOrElse(defaultDict)
     }
 
-  }
-
-  object Variables {
-
-    // Calculated
-    val ZHANG = Set("zhang", "similarity", "Zhang", "Similarity")
-
-    // Sample
-    val ID = Set("id", "pwid")
-    val BATCH = Set("batch", "Batch")
-    val PLATEID = Set("plateid", "PlateId")
-    val WELL = Set("well", "Well")
-    val PROTOCOLNAME = Set("protocolname", "cellline", "CellLine", "ProtocolName", "protocol", "Protocol")
-    val CONCENTRATION = Set("concentration", "Concentration")
-    val YEAR = Set("year", "Year")
-    val TIME = Set("time", "Time")
-
-    // Compound
-    val COMPOUND_ID = Set("jnjs", "Jnjs", "cid", "pid", "compound_id")
-    val JNJB = Set("jnjb", "Jnjb")
-    val COMPOUND_SMILES = Set("Smiles", "smiles", "SMILES", "compound_smiles")
-    val COMPOUND_INCHIKEY = Set("inchikey", "Inchikey", "compound_inchikey")
-    val COMPOUND_NAME = Set("compoundname", "CompoundName", "Compoundname", "name", "Name", "compound_name")
-    val COMPOUND_TYPE = Set("Type", "type", "compound_type")
-    val COMPOUND_TARGETS = Set("targets", "knownTargets", "Targets", "compound_targets")
-
-    // Filters
-    val FILTERS = Set("filters", "Filters", "filter", "filters")
-
-    // Derived
-    val SIGNIFICANTGENES = Set("significantGenes")
+    /**
+     * geneDataType contains a mapping between the read dataType and how it should be
+     * returned from the code.
+     * This is especially useful when two dataTypes are read in together to be concatenated,
+     */
+    def paramGeneDataTypes(config: Config):Map[String, String] = {
+      Try(config.getObject("geneDataType")).toOption
+        .map(_.unwrapped.asScala.toMap.map{case (k,v) => (k.toString, v.toString)})
+        .getOrElse(Map.empty)
+    }
 
   }
 

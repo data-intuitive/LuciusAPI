@@ -17,11 +17,22 @@ import com.typesafe.config.Config
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Dataset
 
-object annotatedplatewellids extends SparkSessionJob with NamedObjectSupport {
+/**
+  * Returns a list of treatments and corresponding samples matching a query, optionally with a limit on the number of results.
+  *
+  * Input:
+  *
+  * - __`query`__: Depending on the pattern, a regexp match or `startsWith` is applied (mandatory)
+  *
+  * - __`version`__: v1, v2 or t1 (optional, default is `v1`)
+  *
+  * - __`limit`__: The result size is limited to this number (optional, default is 10)
+  */
+object treatments extends SparkSessionJob with NamedObjectSupport {
 
-  import AnnotatedIds._
+  import Treatments._
 
-  type JobData = AnnotatedIds.JobData
+  type JobData = Treatments.JobData
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
@@ -34,15 +45,15 @@ object annotatedplatewellids extends SparkSessionJob with NamedObjectSupport {
     val genes = getGenes(runtime)
     val filters = getFilters(runtime)
 
-    val signature = optParamSignature(config)
-    val ids = optParamPwids(config)
+    val compoundQuery = paramCompoundQ(config)
     val limit = optParamLimit(config)
-    val features = optParamFeatures(config)
+    val trtType = optParamTrtType(config)
+    val like = optParamLike(config)
 
     val cachedData = withGood(db, flatDb, genes, filters) { CachedData(_, _, _, _) }
-    val specificData = SpecificData(signature, limit, ids, features)
+    val specificData = withGood(compoundQuery) { SpecificData(_, limit, like, trtType) }
 
-    withGood(version, cachedData) { JobData(_, _, specificData) }
+    withGood(version, cachedData, specificData) { JobData(_, _, _) }
 
   }
 
@@ -52,16 +63,11 @@ object annotatedplatewellids extends SparkSessionJob with NamedObjectSupport {
 
     implicit val thisSession = sparkSession
 
-    data.version match {
-      case "v2" =>
-        Map(
-          "info" -> infoMsg,
-          "header" -> header(data),
-          "data" -> result(data)
-        )
-
-      case _ => Map("result" -> result(data))
-    }
+    Map(
+      "info" -> Treatments.infoMsg,
+      "header" -> Treatments.header(data),
+      "data" -> Treatments.result(data)
+    )
 
   }
 

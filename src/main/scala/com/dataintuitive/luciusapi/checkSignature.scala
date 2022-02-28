@@ -1,24 +1,19 @@
 package com.dataintuitive.luciusapi
 
-// Functions implementation and common code
-import functions.CheckSignatureFunctions._
+import com.dataintuitive.luciuscore._
+import genes._
+import api._
+
 import Common.ParamHandlers._
 
-// LuciusCore
-import com.dataintuitive.luciuscore.Model.DbRow
-import com.dataintuitive.luciuscore.genes._
-
-// Jobserver
 import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
 import spark.jobserver._
 
-// Scala, Scalactic and Typesafe
 import scala.util.Try
 import org.scalactic._
 import Accumulation._
 import com.typesafe.config.Config
 
-// Spark
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.Dataset
 
@@ -31,23 +26,28 @@ import org.apache.spark.sql.Dataset
   */
 object checkSignature extends SparkSessionJob with NamedObjectSupport {
 
-  type JobData = functions.CheckSignatureFunctions.JobData
+  import CheckSignature._
+
+  type JobData = CheckSignature.JobData
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
                         runtime: JobEnvironment,
                         config: Config): JobData Or Every[ValidationProblem] = {
 
+    val version = validVersion(config)
     val db = getDB(runtime)
+    val flatDb = getFlatDB(runtime)
     val genes = getGenes(runtime)
-    val signature = optParamSignature(config)
-    val version = optParamVersion(config)
-    val isValidVersion = validVersion(config)
+    val filters = getFilters(runtime)
 
-    (isValidVersion zip
-      withGood(db, genes) {
-        JobData(_, _, version, signature)
-      }).map(_._2)
+    val signature = optParamSignature(config)
+
+    val cachedData = withGood(db, flatDb, genes, filters) { CachedData(_, _, _, _) }
+    val specificData = SpecificData(signature)
+
+    withGood(version, cachedData) { JobData(_, _, specificData) }
+
 
   }
 
@@ -58,7 +58,7 @@ object checkSignature extends SparkSessionJob with NamedObjectSupport {
     implicit val thisSession = sparkSession
 
     Map(
-      "info" -> info(data),
+      "info" -> infoMsg,
       "header" -> header(data),
       "data" -> result(data)
     )

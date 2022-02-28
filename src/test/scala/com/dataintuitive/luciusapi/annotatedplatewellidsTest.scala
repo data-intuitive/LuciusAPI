@@ -4,7 +4,7 @@ import com.dataintuitive.test.InitBefore
 import com.typesafe.config.ConfigFactory
 import org.scalatest.{FunSpec, Matchers}
 import spark.jobserver.{SparkJobInvalid, SparkJobValid}
-
+/*
 class annotatedplatewellidsTest extends FunSpec with Matchers with InitBefore {
 
   import annotatedplatewellids._
@@ -120,3 +120,4 @@ class annotatedplatewellidsTest extends FunSpec with Matchers with InitBefore {
   }
 
 }
+*/
