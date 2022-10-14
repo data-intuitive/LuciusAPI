@@ -1,10 +1,11 @@
 package com.dataintuitive.luciusapi
 
 import com.dataintuitive.luciuscore._
-import model.v4._
+import model.v4_1._
 import genes._
-import api._
+import api.v4_1._
 import io.GenesIO._
+import lenses.CombinedPerturbationLenses.safeCellLens
 
 import Common.ParamHandlers._
 import com.dataintuitive.jobserver._
@@ -109,7 +110,7 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     val flatDb = db.map( row =>
           FlatDbRow(
             row.id,
-            row.info.cell.getOrElse("N/A"),
+            safeCellLens.get(row),
             row.trt.trt_cp.map(_.dose).getOrElse("N/A"),
             row.trtType,
             row.trt.trt.name,

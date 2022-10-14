@@ -2,7 +2,7 @@ package com.dataintuitive.luciusapi
 
 import com.dataintuitive.luciuscore._
 import genes._
-import api._
+import api.v4_1._
 
 import Common.ParamHandlers._
 

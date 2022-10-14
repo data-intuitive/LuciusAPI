@@ -2,7 +2,7 @@ package com.dataintuitive.luciusapi
 
 import com.dataintuitive.luciusapi.Common.ParamHandlers._
 import com.dataintuitive.luciuscore._
-import com.dataintuitive.luciuscore.api._
+import api.v4_1._
 import com.typesafe.config.Config
 import org.apache.spark.sql.SparkSession
 import org.scalactic.Accumulation._
