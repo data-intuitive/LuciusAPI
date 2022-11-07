@@ -2,9 +2,9 @@ package com.dataintuitive.luciusapi
 
 // LuciusCore
 import com.dataintuitive.luciuscore._
-import model.v4._
+import model.v4_1._
 import genes._
-import api._
+import api.v4_1._
 
 // Jobserver
 import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
