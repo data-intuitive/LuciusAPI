@@ -269,7 +269,7 @@ object Common extends Serializable {
         .getOrElse(StorageLevel.MEMORY_ONLY)
     }
 
-    def paramDbVersion(config: Config, default: String = "v2"): String = {
+    def paramDbVersion(config: Config, default: String = "0"): String = {
       Try(config.getString("db.version")).getOrElse(default)
     }
 

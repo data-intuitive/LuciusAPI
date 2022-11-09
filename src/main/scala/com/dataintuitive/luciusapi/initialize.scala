@@ -15,6 +15,7 @@ import spark.jobserver.api.{JobEnvironment, SingleProblem, ValidationProblem}
 import spark.jobserver.SparkSessionJob
 import spark.jobserver._
 
+import scala.util.control.Exception._
 import scala.util.Try
 import org.scalactic._
 import Accumulation._
@@ -26,6 +27,7 @@ import org.apache.spark.sql.Encoders
 
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.storage.StorageLevel._
+import org.apache.hadoop.fs.{FileSystem, Path}
 
 object initialize extends SparkSessionJob with NamedObjectSupport {
 
@@ -54,6 +56,34 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
   }
 
+    case class Version(major: Int, minor: Int) extends Ordered[Version] {
+      import scala.math.Ordered.orderingToOrdered
+
+      override def toString = major.toString + "." + minor.toString
+
+      def compare(that: Version): Int =
+        ((this.major compare that.major), (this.minor compare that.minor)) match {
+          case (1,_) => 1
+          case (0,1) => 1
+          case (0,0) => 0
+          case _ => -1
+        }
+
+      def update(fromScratch: Boolean) =
+        if (fromScratch)
+          Version(this.major + 1, 0)
+        else
+          Version(this.major, this.minor + 1)
+    }
+
+    object Version {
+      def apply(v:String):Version = {
+        val vSplit = v.split("\\.")
+        val major = vSplit.headOption.flatMap(x => allCatch.opt(x.toInt)).getOrElse(0)
+        val minor = if (vSplit.size > 1) vSplit.drop(1).headOption.flatMap(x => allCatch.opt(x.toInt)).getOrElse(0) else 0
+        Version(major, minor)
+      }
+    }
   override def runJob(sparkSession: SparkSession,
                       runtime: JobEnvironment,
                       data: JobData): JobOutput = {
@@ -85,19 +115,89 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
     runtime.namedObjects.update("genes", NamedBroadcast(genesBC))
 
-    val parquets = data.dbs.map(
+    // Add inline, should be moved elsewhere --- START
+    case class DatedVersionedObject[T](date: java.time.LocalDate, version: Version, obj: T)
+
+
+    def allInput(sparkSession: SparkSession, path: List[String]):List[DatedVersionedObject[Path]] = {
+      import sparkSession.implicits._
+
+      val fs = FileSystem.get(sparkSession.sparkContext.hadoopConfiguration)
+
+      val outputList =
+        path.flatMap(p => {
+          val pp = new Path(p)
+          if (pp.toString.contains(".parquet"))
+            List(pp)
+              .map(x => (x.getName, x.getParent, x))
+          else
+            fs
+              .listStatus(pp)
+              .map(_.getPath)
+              .map(x => (x.getName, x.getParent, x))
+              .filter(_._1.toString() contains ".parquet")
+        })
+      val outputs = outputList.map{ case(name, path, fullPath) =>
+        val p = sparkSession.read.parquet(fullPath.toString).as[Perturbation]
+        val version:Version =
+          p.first
+            .meta
+            .filter{ case MetaInformation(key, value) => key == "version"}
+            .headOption
+            .map(_.value)
+            .map(Version(_))
+            .getOrElse(Version(0,0))
+        val dateStrO =
+          p.first
+            .meta
+            .filter{ case MetaInformation(key, value) => key == "processingDate"}
+            .headOption
+            .map(_.value)
+            val date = dateStrO.map(java.time.LocalDate.parse).getOrElse(java.time.LocalDate.MIN)
+            DatedVersionedObject(date, version, fullPath)
+      }.toList
+
+      outputs
+
+    }
+
+    case class State[T](state: List[DatedVersionedObject[T]] = List()) {
+      def lastVersion = 
+        if (state.length == 0)
+          Version(-1,0)
+        else
+          Version(state.sortBy(_.version).last.version.major, state.sortBy(_.version).last.version.minor)
+
+      def lastDate =
+        if (state.length == 0)
+          java.time.LocalDate.MIN
+        else
+          state.sortBy(_.version).last.date
+
+      def +(el: DatedVersionedObject[T]):State[T] = State(el :: state)
+    }
+
+    // END
+
+    val outputs = allInput(sparkSession, data.dbs)
+    val state = State(outputs)
+
+    val thisVersion = state.state.filter(_.version.major.toString == data.dbVersion)
+
+    println(outputs)
+    println(state)
+    println(thisVersion)
+
+    val parquets = thisVersion.map(_.obj.toString).map(
       sparkSession.read
         .schema(Encoders.product[Perturbation].schema) // This assists parquet file reading so that it is more independent of our current Perturbation format.
                                                        // Without adding the schema, the parquet needs to be 100% similar to Perturbations.
                                                        // At the moment of writing, this was needed because the parquet files only have 4 treatment types but the
                                                        // Perturbation class have the full 14 types.
         .parquet(_)
-        //.as(Encoders.product[Perturbation])
     )
     val dbRaws = parquets.map{ parquet =>
       (parquet, data.dbVersion) match {
-        // case (parquet, "v1") => parquet.as[OldDbRow].map(_.toDbRow)
-        // case (parquet, "v3") => parquet.as[DbRow]
         case (parquet, _)  => parquet.as[Perturbation]
       }
     }
