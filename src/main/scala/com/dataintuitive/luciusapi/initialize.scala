@@ -124,8 +124,8 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
             .filter{ case MetaInformation(key, value) => key == "processingDate"}
             .headOption
             .map(_.value)
-            val date = dateStrO.map(java.time.LocalDate.parse).getOrElse(java.time.LocalDate.MIN)
-            DatedVersionedObject(date, version, fullPath)
+        val date = dateStrO.map(java.time.LocalDate.parse).getOrElse(java.time.LocalDate.MIN)
+        DatedVersionedObject(date, version, fullPath)
       }.toList
 
       outputs
