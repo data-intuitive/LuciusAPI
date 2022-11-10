@@ -5,6 +5,7 @@ import model.v4_1._
 import genes._
 import api.v4_1._
 import io.GenesIO._
+import io.{ Version, DatedVersionedObject, State }
 import lenses.CombinedPerturbationLenses.safeCellLens
 
 import Common.ParamHandlers._
@@ -56,34 +57,6 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
   }
 
-    case class Version(major: Int, minor: Int) extends Ordered[Version] {
-      import scala.math.Ordered.orderingToOrdered
-
-      override def toString = major.toString + "." + minor.toString
-
-      def compare(that: Version): Int =
-        ((this.major compare that.major), (this.minor compare that.minor)) match {
-          case (1,_) => 1
-          case (0,1) => 1
-          case (0,0) => 0
-          case _ => -1
-        }
-
-      def update(fromScratch: Boolean) =
-        if (fromScratch)
-          Version(this.major + 1, 0)
-        else
-          Version(this.major, this.minor + 1)
-    }
-
-    object Version {
-      def apply(v:String):Version = {
-        val vSplit = v.split("\\.")
-        val major = vSplit.headOption.flatMap(x => allCatch.opt(x.toInt)).getOrElse(0)
-        val minor = if (vSplit.size > 1) vSplit.drop(1).headOption.flatMap(x => allCatch.opt(x.toInt)).getOrElse(0) else 0
-        Version(major, minor)
-      }
-    }
   override def runJob(sparkSession: SparkSession,
                       runtime: JobEnvironment,
                       data: JobData): JobOutput = {
@@ -116,8 +89,6 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     runtime.namedObjects.update("genes", NamedBroadcast(genesBC))
 
     // Add inline, should be moved elsewhere --- START
-    case class DatedVersionedObject[T](date: java.time.LocalDate, version: Version, obj: T)
-
 
     def allInput(sparkSession: SparkSession, path: List[String]):List[DatedVersionedObject[Path]] = {
       import sparkSession.implicits._
@@ -159,22 +130,6 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
       outputs
 
-    }
-
-    case class State[T](state: List[DatedVersionedObject[T]] = List()) {
-      def lastVersion = 
-        if (state.length == 0)
-          Version(-1,0)
-        else
-          Version(state.sortBy(_.version).last.version.major, state.sortBy(_.version).last.version.minor)
-
-      def lastDate =
-        if (state.length == 0)
-          java.time.LocalDate.MIN
-        else
-          state.sortBy(_.version).last.date
-
-      def +(el: DatedVersionedObject[T]):State[T] = State(el :: state)
     }
 
     // END
