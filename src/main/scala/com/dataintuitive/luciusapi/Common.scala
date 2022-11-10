@@ -84,6 +84,12 @@ object Common extends Serializable {
         .getOrElse(Bad(One(SingleProblem("Parameter compounds not provided"))))
     }
 
+    def paramPerturbation(config: Config): String Or One[ValidationProblem] = {
+      Try(config.getString("query"))
+        .map(q => Good(q))
+        .getOrElse(Bad(One(SingleProblem("Parameter perturbation query not provided"))))
+    }
+
     def paramSamples(config: Config): List[String] Or One[ValidationProblem] = {
       Try(config.getString("samples").split(" ").toList)
         .map(q => Good(q))
