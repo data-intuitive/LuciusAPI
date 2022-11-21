@@ -5,7 +5,7 @@ import model.v4_1._
 import genes._
 import api.v4_1._
 import io.GenesIO._
-import io.{ Version, DatedVersionedObject, State }
+import io.State
 import lenses.CombinedPerturbationLenses.safeCellLens
 
 import Common.ParamHandlers._
@@ -28,7 +28,6 @@ import org.apache.spark.sql.Encoders
 
 import org.apache.spark.storage.StorageLevel
 import org.apache.spark.storage.StorageLevel._
-import org.apache.hadoop.fs.{FileSystem, Path}
 
 object initialize extends SparkSessionJob with NamedObjectSupport {
 
@@ -36,9 +35,7 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
                      geneAnnotations: String,
                      dbVersion: String,
                      partitions: Int,
-                     storageLevel: StorageLevel,
-                     geneFeatures: Map[String, String],
-                     geneDataTypes: Map[String, String])
+                     storageLevel: StorageLevel)
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
@@ -50,10 +47,8 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     val dbVersion = paramDbVersion(config)
     val partitions = paramPartitions(config)
     val storageLevel = paramStorageLevel(config)
-    val geneFeatures = paramGeneFeatures(config)
-    val geneDataTypes = paramGeneDataTypes(config)
 
-    withGood(db, genes) { JobData(_, _, dbVersion, partitions, storageLevel, geneFeatures, geneDataTypes) }
+    withGood(db, genes) { JobData(_, _, dbVersion, partitions, storageLevel) }
 
   }
 
@@ -81,60 +76,12 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
       .set("fs.s3n.awsSecretAccessKey", fs_s3_awsSecretAccessKey)
 
     // Loading gene annotations and broadcast
-    val genes =
-      loadGenesFromFile(sparkSession.sparkContext, data.geneAnnotations, delimiter="\t", dict = data.geneFeatures, dataTypeDict = data.geneDataTypes)
-    val genesDB = new GenesDB(genes)
+    val genesDB = IO.getGenesDB(sparkSession, data.geneAnnotations)
     val genesBC = sparkSession.sparkContext.broadcast(genesDB)
 
     runtime.namedObjects.update("genes", NamedBroadcast(genesBC))
 
-    // Add inline, should be moved elsewhere --- START
-
-    def allInput(sparkSession: SparkSession, path: List[String]):List[DatedVersionedObject[Path]] = {
-      import sparkSession.implicits._
-
-      val fs = FileSystem.get(sparkSession.sparkContext.hadoopConfiguration)
-
-      val outputList =
-        path.flatMap(p => {
-          val pp = new Path(p)
-          if (pp.toString.contains(".parquet"))
-            List(pp)
-              .map(x => (x.getName, x.getParent, x))
-          else
-            fs
-              .listStatus(pp)
-              .map(_.getPath)
-              .map(x => (x.getName, x.getParent, x))
-              .filter(_._1.toString() contains ".parquet")
-        })
-      val outputs = outputList.map{ case(name, path, fullPath) =>
-        val p = sparkSession.read.parquet(fullPath.toString).as[Perturbation]
-        val version:Version =
-          p.first
-            .meta
-            .filter{ case MetaInformation(key, value) => key == "version"}
-            .headOption
-            .map(_.value)
-            .map(Version(_))
-            .getOrElse(Version(0,0))
-        val dateStrO =
-          p.first
-            .meta
-            .filter{ case MetaInformation(key, value) => key == "processingDate"}
-            .headOption
-            .map(_.value)
-        val date = dateStrO.map(java.time.LocalDate.parse).getOrElse(java.time.LocalDate.MIN)
-        DatedVersionedObject(date, version, fullPath)
-      }.toList
-
-      outputs
-
-    }
-
-    // END
-
-    val outputs = allInput(sparkSession, data.dbs)
+    val outputs = IO.allInput(sparkSession, data.dbs)
     val state = State(outputs)
 
     val thisVersion = state.state.filter(_.version.major.toString == data.dbVersion)
