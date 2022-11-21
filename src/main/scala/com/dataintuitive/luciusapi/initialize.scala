@@ -6,7 +6,7 @@ import genes._
 import api.v4_1._
 import io.GenesIO._
 import io.State
-import lenses.CombinedPerturbationLenses.safeCellLens
+import lenses.CombinedPerturbationLenses.safeCellDetailsLens
 
 import Common.ParamHandlers._
 import com.dataintuitive.jobserver._
@@ -112,7 +112,7 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     val flatDb = db.map( row =>
           FlatDbRow(
             row.id,
-            safeCellLens.get(row),
+            safeCellDetailsLens.get(row).head,
             row.trt.trt_cp.map(_.dose).getOrElse("N/A"),
             row.trtType,
             row.trt.trt.name,
