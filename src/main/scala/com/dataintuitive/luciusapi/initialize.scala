@@ -35,7 +35,8 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
                      geneAnnotations: String,
                      dbVersion: String,
                      partitions: Int,
-                     storageLevel: StorageLevel)
+                     storageLevel: StorageLevel,
+                     geneDataTypes: Map[String, String])
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
@@ -47,8 +48,9 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     val dbVersion = paramDbVersion(config)
     val partitions = paramPartitions(config)
     val storageLevel = paramStorageLevel(config)
+    val geneDataTypes = paramGeneDataTypes(config)
 
-    withGood(db, genes) { JobData(_, _, dbVersion, partitions, storageLevel) }
+    withGood(db, genes) { JobData(_, _, dbVersion, partitions, storageLevel, geneDataTypes) }
 
   }
 
@@ -76,7 +78,7 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
       .set("fs.s3n.awsSecretAccessKey", fs_s3_awsSecretAccessKey)
 
     // Loading gene annotations and broadcast
-    val genesDB = IO.getGenesDB(sparkSession, data.geneAnnotations)
+    val genesDB = IO.getGenesDB(sparkSession, data.geneAnnotations, data.geneDataTypes)
     val genesBC = sparkSession.sparkContext.broadcast(genesDB)
 
     runtime.namedObjects.update("genes", NamedBroadcast(genesBC))
