@@ -14,7 +14,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 
 object IO {
 
-  def getGenesDB(sparkSession: SparkSession, geneAnnotationsFile: String): GenesDB = {
+  def getGenesDB(sparkSession: SparkSession, geneAnnotationsFile: String, dataTypeDict: Map[String, String] = Map.empty): GenesDB = {
     import sparkSession.implicits._
     
     val genesRaw = sparkSession.read.parquet(geneAnnotationsFile)
@@ -32,8 +32,10 @@ object IO {
       .withColumn("dataType", concat(col("dataType1"), lit("-"), col("dataType2")))
       .as[Gene]
       .collect
+    
+    val genesMappedDatatype = genesMapped.map(gene => gene.copy(dataType = dataTypeDict.get(gene.dataType).getOrElse(gene.dataType)))
 
-    genes.GenesDB(genesMapped)
+    genes.GenesDB(genesMappedDatatype)
   }
 
   def allInput(sparkSession: SparkSession, path: List[String]):List[DatedVersionedObject[Path]] = {
