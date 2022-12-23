@@ -13,6 +13,7 @@ There's still a lot of work to be done on this (version numbers don't reflect ev
 | 5.1.0     | 4.1.1      | 0.11.1          | 2.4.7 |
 | 5.1.1     | 4.1.1      | 0.11.1          | 2.4.7 |
 | 5.1.2     | 4.1.1      | 0.11.1          | 2.4.7 |
+| 5.1.3     | 4.1.1      | 0.11.1          | 2.4.7 |
 
 # API Documentation
 
