@@ -275,7 +275,7 @@ object Common extends Serializable {
         .getOrElse(StorageLevel.MEMORY_ONLY)
     }
 
-    def paramDbVersion(config: Config, default: String = "0"): String = {
+    def paramDbVersion(config: Config, default: String = "latest"): String = {
       Try(config.getString("db.version")).getOrElse(default)
     }
 

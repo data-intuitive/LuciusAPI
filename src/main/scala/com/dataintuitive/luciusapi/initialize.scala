@@ -86,7 +86,13 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     val outputs = IO.allInput(sparkSession, data.dbs)
     val state = State(outputs)
 
-    val thisVersion = state.state.filter(_.version.major.toString == data.dbVersion)
+    val majorVersion =
+      if (data.dbVersion == "latest") 
+        state.lastVersion.major.toString
+      else
+        data.dbVersion
+
+    val thisVersion = state.state.filter(_.version.major.toString == majorVersion)
 
     println(outputs)
     println(state)
