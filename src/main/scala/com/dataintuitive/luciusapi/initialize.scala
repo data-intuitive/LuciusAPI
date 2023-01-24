@@ -96,10 +96,6 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
 
     val thisVersion = state.state.filter(_.version.major.toString == majorVersion)
 
-    println(outputs)
-    println(state)
-    println(thisVersion)
-
     val parquets = thisVersion.map(_.obj.toString).map(
       sparkSession.read
         .schema(Encoders.product[Perturbation].schema) // This assists parquet file reading so that it is more independent of our current Perturbation format.
