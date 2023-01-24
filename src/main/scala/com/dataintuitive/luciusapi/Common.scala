@@ -312,6 +312,11 @@ object Common extends Serializable {
         .getOrElse(Map.empty)
     }
 
+    def paramMultiplicity(config: Config):Int = {
+      Try(config.getString("multiplicity").toInt)
+        .getOrElse(1)
+    }
+
   }
 
 }

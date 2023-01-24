@@ -36,7 +36,8 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
                      dbVersion: String,
                      partitions: Int,
                      storageLevel: StorageLevel,
-                     geneDataTypes: Map[String, String])
+                     geneDataTypes: Map[String, String],
+                     multiplicity: Int)
   type JobOutput = collection.Map[String, Any]
 
   override def validate(sparkSession: SparkSession,
@@ -49,8 +50,9 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
     val partitions = paramPartitions(config)
     val storageLevel = paramStorageLevel(config)
     val geneDataTypes = paramGeneDataTypes(config)
+    val multiplicity = paramMultiplicity(config)
 
-    withGood(db, genes) { JobData(_, _, dbVersion, partitions, storageLevel, geneDataTypes) }
+    withGood(db, genes) { JobData(_, _, dbVersion, partitions, storageLevel, geneDataTypes, multiplicity) }
 
   }
 
@@ -111,7 +113,9 @@ object initialize extends SparkSessionJob with NamedObjectSupport {
         case (parquet, _)  => parquet.as[Perturbation]
       }
     }
-    val db = dbRaws.reduce(_ union _).repartition(data.partitions)
+    val db_single = dbRaws.reduce(_ union _)
+
+    val db = (1 to data.multiplicity).map{ i => db_single}.reduce(_ union _).repartition(data.partitions)
 
     val dbNamedDataset = NamedDataSet[Perturbation](db, forceComputation = true, storageLevel = data.storageLevel)
 
