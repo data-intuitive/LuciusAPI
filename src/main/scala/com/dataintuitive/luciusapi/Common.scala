@@ -312,6 +312,16 @@ object Common extends Serializable {
         .getOrElse(Map.empty)
     }
 
+    /**
+     * In order to make sure Lucius handles heavy load and slow response times,
+     * it's important to dev/test with larger datasets than a small dev dataset allows.
+     * This paramter multiplies input data this many times so the apparant dataset is larger.
+     */
+    def paramMultiplicity(config: Config):Int = {
+      Try(config.getString("multiplicity").toInt)
+        .getOrElse(1)
+    }
+
   }
 
 }
