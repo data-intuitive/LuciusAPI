@@ -8,7 +8,8 @@ import io.GenesIO._
 import io.{ Version, DatedVersionedObject, State }
 
 import org.apache.spark.sql.SparkSession
-import org.apache.spark.sql.functions.{lit, typedLit, concat, array, monotonicallyIncreasingId, col}
+import org.apache.spark.sql.functions.{lit, typedLit, concat, array, col, row_number}
+import org.apache.spark.sql.expressions.Window
 
 import org.apache.hadoop.fs.{FileSystem, Path}
 
@@ -20,7 +21,7 @@ object IO {
     val genesRaw = sparkSession.read.parquet(geneAnnotationsFile)
     val genesMapped = genesRaw
       .drop("gene_description", "probe_set_id")
-      .withColumn("index", monotonicallyIncreasingId.cast("integer"))
+      .withColumn("index",row_number().over(Window.orderBy(lit(1))))
       .withColumnRenamed("gene_id", "id")
       .withColumn("entrezid", typedLit(Option.empty[Set[String]]))
       .withColumn("ensemblid", typedLit(Option.empty[Set[String]]))

@@ -2,7 +2,7 @@ name := "LuciusAPI"
 
 import aether.AetherKeys._
 
-ThisBuild / version := "5.1.4"
+ThisBuild / version := "5.1.5"
 
 scalaVersion := "2.11.12"
 
